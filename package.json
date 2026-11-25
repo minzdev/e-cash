@@ -1,0 +1,33 @@
+{
+  "name": "e-cash",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "E-Cash — sistem manajemen kasir, stok, dan laporan keuangan real-time.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^13.4.0",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.3",
+    "recharts": "^2.15.4",
+    "sonner": "^2.0.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tailwindcss": "^4.1.11",
+    "vite": "^6.3.5"
+  }
+}

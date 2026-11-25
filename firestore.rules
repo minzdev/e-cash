@@ -1,0 +1,59 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: cek apakah pengguna telah login
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 1. Profil Pengguna (users)
+    // Pengguna yang login dapat membaca dan menulis data profilnya
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 2. Pengaturan Toko (settings)
+    // Read publik agar nama toko, kontak & logo muncul di struk belanja
+    // Simpan & update diizinkan untuk pengguna yang login
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // 3. Produk & Stok (products)
+    // Read publik (agar kasir & struk selalu bisa membaca data produk)
+    // CRUD lengkap (Simpan/Create, Edit/Update, Hapus/Delete) untuk pengguna yang login
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // 4. Riwayat Transaksi & Penjualan (sales)
+    // Read publik untuk halaman struk belanja online pelanggan (/receipt/:id)
+    // CRUD lengkap (Simpan transaksi baru, Edit status/void, Hapus transaksi) untuk pengguna yang login
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    // 5. Riwayat Pergerakan Stok (stockMoves)
+    // CRUD lengkap untuk mutasi stok (penjualan, restock, void)
+    match /stockMoves/{moveId} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+
+    // 6. Penomoran Faktur / Nota (counters)
+    // Menghasilkan nomor nota urut INV-YYYYMMDD-XXXX
+    match /counters/{counterId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Aturan fallback untuk dokumen lainnya
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
