@@ -85,8 +85,15 @@ export default function Finance() {
     setSettingsForm({
       initialCash: settings?.initialCash ?? 626000,
       initialStockPcs: settings?.initialStockPcs ?? 133,
-      magatiFeePerPcs: settings?.magatiFeePerPcs ?? 2000,
-      salesFeePerPcs: settings?.salesFeePerPcs ?? 0,
+      retailPrice: settings?.retailPrice ?? 50000,
+      wholesalePrice: settings?.wholesalePrice ?? 45000,
+      wholesaleMinQty: settings?.wholesaleMinQty ?? 20,
+      magatiFeeRetail: settings?.magatiFeeRetail ?? 5000,
+      magatiFeeWholesale: settings?.magatiFeeWholesale ?? 2000,
+      magatiFeePerPcs: settings?.magatiFeeWholesale ?? 2000,
+      salesFeeRetail: settings?.salesFeeRetail ?? 5000,
+      salesFeeWholesale: settings?.salesFeeWholesale ?? 3000,
+      salesFeePerPcs: settings?.salesFeeWholesale ?? 3000,
       defaultSalesName: settings?.defaultSalesName || 'Pak bambang',
       reportProductTitle: settings?.reportProductTitle || 'SUSU KAMBING GIARVA',
       reportPeriod: settings?.reportPeriod || 'BULAN JULI 2025',
@@ -102,8 +109,15 @@ export default function Finance() {
         ...settings,
         initialCash: Number(settingsForm.initialCash) || 0,
         initialStockPcs: Number(settingsForm.initialStockPcs) || 0,
-        magatiFeePerPcs: Number(settingsForm.magatiFeePerPcs) || 0,
-        salesFeePerPcs: Number(settingsForm.salesFeePerPcs) || 0,
+        retailPrice: Number(settingsForm.retailPrice) || 50000,
+        wholesalePrice: Number(settingsForm.wholesalePrice) || 45000,
+        wholesaleMinQty: Number(settingsForm.wholesaleMinQty) || 20,
+        magatiFeeRetail: Number(settingsForm.magatiFeeRetail) || 5000,
+        magatiFeeWholesale: Number(settingsForm.magatiFeeWholesale) || 2000,
+        magatiFeePerPcs: Number(settingsForm.magatiFeeWholesale) || 2000,
+        salesFeeRetail: Number(settingsForm.salesFeeRetail) || 5000,
+        salesFeeWholesale: Number(settingsForm.salesFeeWholesale) || 3000,
+        salesFeePerPcs: Number(settingsForm.salesFeeWholesale) || 3000,
         defaultSalesName: settingsForm.defaultSalesName.trim() || 'Pak bambang',
         reportProductTitle: settingsForm.reportProductTitle.trim() || 'SUSU KAMBING GIARVA',
         reportPeriod: settingsForm.reportPeriod.trim() || 'BULAN JULI 2025',
@@ -332,12 +346,19 @@ export default function Finance() {
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return tableRows.filter((row) => {
-      if (typeFilter !== 'all' && row.type !== typeFilter) return false
+      if (typeFilter === 'cash' && row.paymentMethod !== 'cash') return false
+      if (typeFilter === 'transfer' && row.paymentMethod !== 'transfer') return false
+      if (typeFilter === 'sale' && row.type !== 'sale') return false
+      if (typeFilter === 'rumah' && row.type !== 'rumah') return false
+      if (typeFilter === 'tf_saldo' && (row.tfSaldo || 0) <= 0) return false
+      if (typeFilter === 'cash_out' && (row.cashOut || 0) <= 0) return false
+      if (typeFilter === 'in_dus' && (row.inDus || 0) <= 0) return false
       if (!q) return true
       return (
         String(row.keterangan || '').toLowerCase().includes(q) ||
         String(row.customerNote || '').toLowerCase().includes(q) ||
-        String(row.date || '').toLowerCase().includes(q)
+        String(row.date || '').toLowerCase().includes(q) ||
+        String(row.paymentMethod || '').toLowerCase().includes(q)
       )
     })
   }, [tableRows, search, typeFilter])
@@ -446,11 +467,13 @@ export default function Finance() {
             <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-10 w-44"
-              aria-label="Filter Tipe"
+              className="h-10 w-52"
+              aria-label="Filter Tipe Transaksi"
             >
-              <option value="all">Semua Tipe</option>
-              <option value="sale">Penjualan</option>
+              <option value="all">Semua Transaksi</option>
+              <option value="cash">Tunai (Diterima Kasir)</option>
+              <option value="transfer">Transfer (Langsung Owner)</option>
+              <option value="sale">Semua Penjualan</option>
               <option value="rumah">Ambilan Rumah</option>
               <option value="tf_saldo">Transfer Saldo (Kas IN)</option>
               <option value="cash_out">Pengeluaran (Kas OUT)</option>
@@ -541,11 +564,24 @@ export default function Finance() {
                         {row.date}
                       </td>
                       <td className="border border-slate-200 px-3 py-2 font-medium text-slate-800">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span>{row.keterangan}</span>
-                          {row.sourceType === 'sale' ? (
+                          {row.paymentMethod === 'cash' ? (
+                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                              Tunai (Kasir)
+                            </span>
+                          ) : row.paymentMethod === 'transfer' ? (
+                            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold text-sky-700 ring-1 ring-sky-200">
+                              Transfer (Owner)
+                            </span>
+                          ) : row.sourceType === 'sale' ? (
                             <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-bold text-brand-700 ring-1 ring-brand-200/60">
                               POS
+                            </span>
+                          ) : null}
+                          {row.priceTier === 'grosir' ? (
+                            <span className="rounded bg-amber-50 px-1 py-0.5 text-[9px] font-bold text-amber-700">
+                              Grosir
                             </span>
                           ) : null}
                         </div>
@@ -568,8 +604,12 @@ export default function Finance() {
                       <td className="border border-slate-200 px-3 py-2 text-right font-bold text-amber-700">
                         {row.magatiFee > 0 ? formatNumber(row.magatiFee) : ''}
                       </td>
-                      <td className="border border-slate-200 px-3 py-2 text-right text-slate-600">
-                        {row.uangModal > 0 ? formatNumber(row.uangModal) : ''}
+                      <td className="border border-slate-200 px-3 py-2 text-right">
+                        {row.uangModal > 0 ? (
+                          <span className="font-semibold text-slate-800">{formatNumber(row.uangModal)}</span>
+                        ) : (
+                          <span className="font-normal text-slate-400">-</span>
+                        )}
                       </td>
                       <td className="border border-slate-200 px-3 py-2 text-right font-bold text-emerald-700">
                         {row.tfSaldo > 0 ? formatNumber(row.tfSaldo) : ''}
@@ -708,24 +748,79 @@ export default function Finance() {
             />
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Input
+              label="Harga Jual Eceran (Rp)"
+              type="number"
+              min="0"
+              step="1000"
+              value={settingsForm.retailPrice}
+              onChange={(e) => setSettingsForm({ ...settingsForm, retailPrice: e.target.value })}
+              hint="Pembelian < 20 pcs (Rp 50.000)"
+            />
+            <Input
+              label="Harga Jual Grosir (Rp)"
+              type="number"
+              min="0"
+              step="1000"
+              value={settingsForm.wholesalePrice}
+              onChange={(e) => setSettingsForm({ ...settingsForm, wholesalePrice: e.target.value })}
+              hint="Pembelian >= 20 pcs (Rp 45.000)"
+            />
+            <Input
+              label="Minimal Pcs Grosir"
+              type="number"
+              min="1"
+              value={settingsForm.wholesaleMinQty}
+              onChange={(e) => setSettingsForm({ ...settingsForm, wholesaleMinQty: e.target.value })}
+              hint="Default: 20 pcs"
+            />
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Besaran Fee Magati per Pcs (Rp)"
-              type="number"
-              min="0"
-              value={settingsForm.magatiFeePerPcs}
-              onChange={(e) => setSettingsForm({ ...settingsForm, magatiFeePerPcs: e.target.value })}
-              hint="Default Rp 2.000 (bisa dicustom)"
-              required
-            />
-            <Input
-              label="Besaran Fee Sales/Pembawa per Pcs (Rp)"
-              type="number"
-              min="0"
-              value={settingsForm.salesFeePerPcs}
-              onChange={(e) => setSettingsForm({ ...settingsForm, salesFeePerPcs: e.target.value })}
-              hint="Fee untuk pembawa barang"
-            />
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <p className="text-xs font-bold text-slate-800">Fee Magati</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Eceran (<20)"
+                  type="number"
+                  min="0"
+                  value={settingsForm.magatiFeeRetail}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, magatiFeeRetail: e.target.value })}
+                  hint="Rp 5.000"
+                />
+                <Input
+                  label="Grosir (>=20)"
+                  type="number"
+                  min="0"
+                  value={settingsForm.magatiFeeWholesale}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, magatiFeeWholesale: e.target.value })}
+                  hint="Rp 2.000"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <p className="text-xs font-bold text-slate-800">Fee Sales / Pembawa</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Eceran (<20)"
+                  type="number"
+                  min="0"
+                  value={settingsForm.salesFeeRetail}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, salesFeeRetail: e.target.value })}
+                  hint="Rp 5.000"
+                />
+                <Input
+                  label="Grosir (>=20)"
+                  type="number"
+                  min="0"
+                  value={settingsForm.salesFeeWholesale}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, salesFeeWholesale: e.target.value })}
+                  hint="Rp 3.000"
+                />
+              </div>
+            </div>
           </div>
 
           <Input

@@ -69,8 +69,15 @@ export default function SettingsPage() {
         lowStockDefault: Number(form.lowStockDefault) || 0,
         initialCash: Number(form.initialCash) || 0,
         initialStockPcs: Number(form.initialStockPcs) || 0,
-        magatiFeePerPcs: Number(form.magatiFeePerPcs) || 0,
-        salesFeePerPcs: Number(form.salesFeePerPcs) || 0,
+        retailPrice: Number(form.retailPrice) || 50000,
+        wholesalePrice: Number(form.wholesalePrice) || 45000,
+        wholesaleMinQty: Number(form.wholesaleMinQty) || 20,
+        magatiFeeRetail: Number(form.magatiFeeRetail) || 5000,
+        magatiFeeWholesale: Number(form.magatiFeeWholesale) || 2000,
+        magatiFeePerPcs: Number(form.magatiFeeWholesale || form.magatiFeePerPcs) || 2000,
+        salesFeeRetail: Number(form.salesFeeRetail) || 5000,
+        salesFeeWholesale: Number(form.salesFeeWholesale) || 3000,
+        salesFeePerPcs: Number(form.salesFeeWholesale || form.salesFeePerPcs) || 3000,
         defaultSalesName: String(form.defaultSalesName || 'Pak bambang').trim(),
         reportProductTitle: String(form.reportProductTitle || 'SUSU KAMBING GIARVA').trim(),
         reportPeriod: String(form.reportPeriod || 'BULAN JULI 2025').trim(),
@@ -317,23 +324,79 @@ export default function SettingsPage() {
                 />
               </div>
 
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Input
+                  label="Harga Jual Eceran (Rp)"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={form.retailPrice ?? 50000}
+                  onChange={(event) => update('retailPrice', event.target.value)}
+                  hint="Untuk pembelian < 20 pcs (Rp 50.000)"
+                />
+                <Input
+                  label="Harga Jual Grosir (Rp)"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={form.wholesalePrice ?? 45000}
+                  onChange={(event) => update('wholesalePrice', event.target.value)}
+                  hint="Untuk pembelian >= 20 pcs (Rp 45.000)"
+                />
+                <Input
+                  label="Minimal Pcs Grosir"
+                  type="number"
+                  min="1"
+                  value={form.wholesaleMinQty ?? 20}
+                  onChange={(event) => update('wholesaleMinQty', event.target.value)}
+                  hint="Ambang batas grosir (default: 20 pcs)"
+                />
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Fee Magati per Pcs (Rp)"
-                  type="number"
-                  min="0"
-                  value={form.magatiFeePerPcs ?? 2000}
-                  onChange={(event) => update('magatiFeePerPcs', event.target.value)}
-                  hint="Default Rp 2.000 per transaksi/pcs (bisa dicustom)"
-                />
-                <Input
-                  label="Fee Sales / Pembawa per Pcs (Rp)"
-                  type="number"
-                  min="0"
-                  value={form.salesFeePerPcs ?? 0}
-                  onChange={(event) => update('salesFeePerPcs', event.target.value)}
-                  hint="Fee untuk orang yang membawa barang"
-                />
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <p className="text-xs font-bold text-slate-800">Komisi Fee Magati</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      label="Fee Eceran / Pcs (Rp)"
+                      type="number"
+                      min="0"
+                      value={form.magatiFeeRetail ?? 5000}
+                      onChange={(event) => update('magatiFeeRetail', event.target.value)}
+                      hint="Default Rp 5.000 (<20 pcs)"
+                    />
+                    <Input
+                      label="Fee Grosir / Pcs (Rp)"
+                      type="number"
+                      min="0"
+                      value={form.magatiFeeWholesale ?? 2000}
+                      onChange={(event) => update('magatiFeeWholesale', event.target.value)}
+                      hint="Default Rp 2.000 (>=20 pcs)"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                  <p className="text-xs font-bold text-slate-800">Komisi Fee Sales / Pembawa</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      label="Fee Eceran / Pcs (Rp)"
+                      type="number"
+                      min="0"
+                      value={form.salesFeeRetail ?? 5000}
+                      onChange={(event) => update('salesFeeRetail', event.target.value)}
+                      hint="Default Rp 5.000 (<20 pcs)"
+                    />
+                    <Input
+                      label="Fee Grosir / Pcs (Rp)"
+                      type="number"
+                      min="0"
+                      value={form.salesFeeWholesale ?? 3000}
+                      onChange={(event) => update('salesFeeWholesale', event.target.value)}
+                      hint="Default Rp 3.000 (>=20 pcs)"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">

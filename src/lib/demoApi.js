@@ -208,6 +208,10 @@ export async function createSale(input) {
   const lines = Array.isArray(input.items) ? input.items : []
   if (!lines.length) throw new Error('Keranjang masih kosong.')
 
+  const wholesaleThreshold = Number(input.wholesaleMinQty) || 20
+  const rawTotalQty = lines.reduce((sum, line) => sum + (Number(line.qty) || 0), 0)
+  const isGrosir = input.priceTier === 'wholesale' || (input.priceTier !== 'retail' && rawTotalQty >= wholesaleThreshold)
+
   const saleItems = lines.map((line) => {
     const product = state.products.find((item) => item.id === String(line.productId))
     if (!product) throw new Error('Ada produk yang sudah tidak tersedia.')
@@ -216,16 +220,21 @@ export async function createSale(input) {
     if (Number(product.stock) < qty) {
       throw new Error(`Stok ${product.name} tersisa ${product.stock}.`)
     }
+
+    const basePrice = Number(product.price) || 50000
+    const wholesalePrice = Number(product.wholesalePrice) || (basePrice >= 50000 ? 45000 : basePrice)
+    const effectivePrice = isGrosir ? wholesalePrice : basePrice
+
     return {
       productId: product.id,
       name: product.name,
       sku: product.sku || '',
       emoji: product.emoji || '📦',
       category: product.category || 'Lainnya',
-      price: Number(product.price) || 0,
+      price: effectivePrice,
       cost: Number(product.cost) || 0,
       qty,
-      subtotal: (Number(product.price) || 0) * qty,
+      subtotal: effectivePrice * qty,
     }
   })
 
@@ -264,6 +273,31 @@ export async function createSale(input) {
   const cashier = input.cashier || {}
   const now = new Date()
 
+  const isTunai = method === 'cash'
+  const isTransfer = method === 'transfer'
+  const uangModal = isTunai ? totalCost : 0
+
+  const customerName = String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim()
+  let displayCustomerNote = customerName
+  if (isTransfer && !displayCustomerNote.toLowerCase().includes('transfer')) {
+    displayCustomerNote = displayCustomerNote ? `${displayCustomerNote} (Transfer Owner)` : 'Transfer Owner'
+  }
+
+  const totalQty = saleItems.reduce((sum, item) => sum + item.qty, 0)
+  const magatiRate = isRumah
+    ? 0
+    : isGrosir
+      ? Number(input.magatiFeeWholesale ?? 2000)
+      : Number(input.magatiFeeRetail ?? 5000)
+  const magatiFee = totalQty * magatiRate
+
+  const salesRate = isRumah
+    ? 0
+    : isGrosir
+      ? Number(input.salesFeeWholesale ?? input.salesFeePerPcs ?? 3000)
+      : Number(input.salesFeeRetail ?? input.salesFeePerPcs ?? 5000)
+  const salesFee = totalQty * salesRate
+
   state.counter = (Number(state.counter) || 0) + 1
   const sale = {
     id: uid(),
@@ -278,13 +312,17 @@ export async function createSale(input) {
     paid,
     change: Math.max(0, paid - total),
     paymentMethod: method,
+    priceTier: isGrosir ? 'grosir' : 'eceran',
     rumahPricing: isRumah ? rumahPricing : null,
-    customerName: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+    customerName,
     note: String(input.note || (isRumah ? 'Ambilan Rumah / Owner' : '')).trim(),
     cashierId: cashier.uid || '',
     cashierName: cashier.name || 'Kasir',
     salesPersonId: String(input.salesPersonId || ''),
     salesPersonName: String(input.salesPersonName || ''),
+    magatiFee,
+    salesFee,
+    uangModal,
     status: 'paid',
     createdAt: now.toISOString(),
     dateKey: dateKey(now),
@@ -302,9 +340,6 @@ export async function createSale(input) {
 
   // Auto-create financeRecord agar transaksi masuk ke Buku Kas & Keuangan
   if (!state.financeRecords) state.financeRecords = []
-  const totalQty = saleItems.reduce((sum, item) => sum + item.qty, 0)
-  const magatiFeePerPcs = isRumah ? 0 : (Number(input.magatiFeePerPcs) || 0)
-  const salesFeePerPcs = isRumah ? 0 : (Number(input.salesFeePerPcs) || 0)
   const keterangan = String(input.salesPersonName || input.defaultSalesName || cashier.name || 'Kasir')
   state.financeRecords.push({
     id: uid(),
@@ -315,16 +350,18 @@ export async function createSale(input) {
     salesPersonId: String(input.salesPersonId || ''),
     salesPersonName: String(input.salesPersonName || ''),
     type: isRumah ? 'rumah' : 'sale',
+    paymentMethod: method,
+    priceTier: isGrosir ? 'grosir' : 'eceran',
     inDus: 0,
     outDus: totalQty,
     outBnsDus: 0,
     omzet: total,
-    magatiFee: totalQty * magatiFeePerPcs,
-    salesFee: totalQty * salesFeePerPcs,
-    uangModal: totalCost,
+    magatiFee,
+    salesFee,
+    uangModal, // Hanya terisi jika Tunai (diterima kasir), 0 jika Transfer (langsung ke owner)
     tfSaldo: 0,
     cashOut: 0,
-    customerNote: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+    customerNote: displayCustomerNote,
     invoiceRef: sale.invoiceNo,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),

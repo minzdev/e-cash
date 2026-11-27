@@ -227,22 +227,32 @@ export async function createSale(input) {
       entries.push({ productRef, snapshot, qty: Number(line.qty) })
     }
 
+    const wholesaleThreshold = Number(input.wholesaleMinQty) || 20
+    const rawTotalQty = items.reduce((sum, line) => sum + (Number(line.qty) || 0), 0)
+    const isGrosir = input.priceTier === 'wholesale' || (input.priceTier !== 'retail' && rawTotalQty >= wholesaleThreshold)
+
     const saleItems = entries.map(({ snapshot, qty }) => {
       const product = snapshot.data()
       if (!(qty > 0)) throw new Error('Jumlah item tidak valid.')
       if (Number(product.stock) < qty) {
         throw new Error(`Stok ${product.name} tersisa ${product.stock}.`)
       }
+
+      // Tiering harga eceran vs grosir: jika grosir (>=20 pcs) Rp 45.000, eceran Rp 50.000 (atau harga produk)
+      const basePrice = Number(product.price) || 50000
+      const wholesalePrice = Number(product.wholesalePrice) || (basePrice >= 50000 ? 45000 : basePrice)
+      const effectivePrice = isGrosir ? wholesalePrice : basePrice
+
       return {
         productId: snapshot.id,
         name: product.name,
         sku: product.sku || '',
         emoji: product.emoji || '📦',
         category: product.category || 'Lainnya',
-        price: Number(product.price) || 0,
+        price: effectivePrice,
         cost: Number(product.cost) || 0,
         qty,
-        subtotal: (Number(product.price) || 0) * qty,
+        subtotal: effectivePrice * qty,
       }
     })
 
@@ -285,8 +295,33 @@ export async function createSale(input) {
     const salesPersonId = String(input.salesPersonId || '')
     const salesPersonName = String(input.salesPersonName || '')
     const totalQty = saleItems.reduce((sum, item) => sum + item.qty, 0)
-    const magatiFeePerPcs = isRumah ? 0 : (Number(input.magatiFeePerPcs) || 0)
-    const salesFeePerPcs = isRumah ? 0 : (Number(input.salesFeePerPcs) || 0)
+
+    // Perhitungan Fee Magati otomatis: eceran 5.000/pcs, grosir (>=20) 2.000/pcs
+    const magatiRate = isRumah
+      ? 0
+      : isGrosir
+        ? Number(input.magatiFeeWholesale ?? 2000)
+        : Number(input.magatiFeeRetail ?? 5000)
+    const magatiFee = totalQty * magatiRate
+
+    // Perhitungan Fee Sales otomatis: eceran 5.000/pcs, grosir (>=20) 3.000/pcs
+    const salesRate = isRumah
+      ? 0
+      : isGrosir
+        ? Number(input.salesFeeWholesale ?? input.salesFeePerPcs ?? 3000)
+        : Number(input.salesFeeRetail ?? input.salesFeePerPcs ?? 5000)
+    const salesFee = totalQty * salesRate
+
+    // Uang Modal: jika Tunai diterima admin -> modal terisi. Jika Transfer -> modal tidak masuk (0) karena langsung ke owner
+    const isTunai = method === 'cash'
+    const isTransfer = method === 'transfer'
+    const uangModal = isTunai ? totalCost : 0
+
+    const customerName = String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim()
+    let displayCustomerNote = customerName
+    if (isTransfer && !displayCustomerNote.toLowerCase().includes('transfer')) {
+      displayCustomerNote = displayCustomerNote ? `${displayCustomerNote} (Transfer Owner)` : 'Transfer Owner'
+    }
 
     const payload = {
       invoiceNo,
@@ -300,13 +335,17 @@ export async function createSale(input) {
       paid,
       change: Math.max(0, paid - total),
       paymentMethod: method,
+      priceTier: isGrosir ? 'grosir' : 'eceran',
       rumahPricing: isRumah ? rumahPricing : null,
-      customerName: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+      customerName,
       note: String(input.note || (isRumah ? 'Ambilan Rumah / Owner' : '')).trim(),
       cashierId: cashier.uid || '',
       cashierName: cashier.name || 'Kasir',
       salesPersonId,
       salesPersonName,
+      magatiFee,
+      salesFee,
+      uangModal,
       status: 'paid',
       createdAt: serverTimestamp(),
       dateKey: dateKey(now),
@@ -328,16 +367,18 @@ export async function createSale(input) {
       salesPersonId,
       salesPersonName,
       type: isRumah ? 'rumah' : 'sale',
+      paymentMethod: method,
+      priceTier: isGrosir ? 'grosir' : 'eceran',
       inDus: 0,
       outDus: totalQty,
       outBnsDus: 0,
       omzet: total,
-      magatiFee: totalQty * magatiFeePerPcs,
-      salesFee: totalQty * salesFeePerPcs,
-      uangModal: totalCost,
+      magatiFee,
+      salesFee,
+      uangModal, // Hanya terisi jika Tunai (diterima kasir), 0 jika Transfer (langsung ke owner)
       tfSaldo: 0,
       cashOut: 0,
-      customerNote: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+      customerNote: displayCustomerNote,
       invoiceRef: invoiceNo,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

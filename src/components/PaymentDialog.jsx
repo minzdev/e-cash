@@ -19,20 +19,26 @@ import { Button, Modal } from './ui'
 import ReceiptView from './ReceiptView'
 
 const METHODS = [
-  { id: 'cash', label: 'Tunai', icon: Banknote, active: 'border-emerald-500 bg-emerald-50 text-emerald-700' },
-  { id: 'qris', label: 'QRIS', icon: QrCode, active: 'border-violet-500 bg-violet-50 text-violet-700' },
+  {
+    id: 'cash',
+    label: 'Tunai (Kasir)',
+    subtitle: 'Diterima fisik oleh Admin/Kasir',
+    icon: Banknote,
+    active: 'border-emerald-500 bg-emerald-50 text-emerald-800',
+  },
   {
     id: 'transfer',
-    label: 'Transfer',
+    label: 'Transfer (Owner)',
+    subtitle: 'Langsung masuk rekening Owner',
     icon: ArrowRightLeft,
-    active: 'border-sky-500 bg-sky-50 text-sky-700',
+    active: 'border-sky-500 bg-sky-50 text-sky-800',
   },
-  { id: 'card', label: 'Kartu', icon: CreditCard, active: 'border-amber-500 bg-amber-50 text-amber-700' },
   {
     id: 'rumah',
     label: 'Rumah (Owner)',
+    subtitle: 'Ambilan pribadi / rumah',
     icon: Home,
-    active: 'border-rose-500 bg-rose-50 text-rose-700',
+    active: 'border-rose-500 bg-rose-50 text-rose-800',
   },
 ]
 
@@ -52,7 +58,10 @@ export default function PaymentDialog({
   itemCount,
   salesPersonId = '',
   salesPersonName = '',
-  salesFeePerPcs = 0,
+  salesFeeRetail = 5000,
+  salesFeeWholesale = 3000,
+  isGrosir = false,
+  priceTier = 'retail',
 }) {
   const [method, setMethod] = useState('cash')
   const [paidInput, setPaidInput] = useState('')
@@ -122,6 +131,8 @@ export default function PaymentDialog({
         taxRate: method === 'rumah' && rumahPricing === 'free' ? 0 : taxRate,
         shipping: method === 'rumah' ? 0 : shipping,
         paymentMethod: method,
+        priceTier,
+        wholesaleMinQty: Number(settings?.wholesaleMinQty) || 20,
         rumahPricing: method === 'rumah' ? rumahPricing : null,
         paid,
         customerName: method === 'rumah' ? (customerName || 'Owner (Rumah)') : customerName,
@@ -129,8 +140,10 @@ export default function PaymentDialog({
         cashier,
         salesPersonId,
         salesPersonName,
-        salesFeePerPcs,
-        magatiFeePerPcs: Number(settings?.magatiFeePerPcs) || 0,
+        salesFeeRetail,
+        salesFeeWholesale,
+        magatiFeeRetail: Number(settings?.magatiFeeRetail) || 5000,
+        magatiFeeWholesale: Number(settings?.magatiFeeWholesale) || 2000,
         defaultSalesName: settings?.defaultSalesName || '',
       })
       setCompleted(sale)
@@ -242,8 +255,11 @@ export default function PaymentDialog({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold text-slate-700">Metode pembayaran</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-slate-700">Metode pembayaran</p>
+              <span className="text-[10px] text-slate-400">Pilih Tunai (Kasir) atau Transfer (Owner)</span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {METHODS.map((item) => {
                 const active = method === item.id
                 return (
@@ -254,17 +270,48 @@ export default function PaymentDialog({
                       setMethod(item.id)
                       if (item.id !== 'cash') setPaidInput('')
                     }}
-                    className={
+                    className={cn(
+                      'flex flex-col items-start rounded-xl border-2 p-2.5 text-left transition',
                       active
-                        ? `flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-xs font-bold ${item.active}`
-                        : 'flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300'
-                    }
+                        ? item.active
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
+                    )}
                   >
-                    <item.icon size={16} />
-                    {item.label}
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <item.icon size={15} />
+                      {item.label}
+                    </div>
+                    <span className="mt-1 text-[10px] leading-tight text-slate-500">
+                      {item.subtitle}
+                    </span>
                   </button>
                 )
               })}
+            </div>
+
+            {/* Helper penjelasan arus kas modal admin vs transfer owner */}
+            <div className="mt-2.5">
+              {method === 'cash' ? (
+                <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-2.5 text-xs text-emerald-900">
+                  <Banknote size={15} className="mt-0.5 shrink-0 text-emerald-600" />
+                  <div>
+                    <p className="font-bold">Uang Fisik Diterima Kasir / Admin</p>
+                    <p className="text-[11px] text-emerald-800">
+                      Uang modal fisik tercatat terisi di buku kas karena uang dipegang oleh admin.
+                    </p>
+                  </div>
+                </div>
+              ) : method === 'transfer' ? (
+                <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50/70 p-2.5 text-xs text-sky-900">
+                  <ArrowRightLeft size={15} className="mt-0.5 shrink-0 text-sky-600" />
+                  <div>
+                    <p className="font-bold">Uang Langsung Masuk Rekening Owner</p>
+                    <p className="text-[11px] text-sky-800">
+                      Admin hanya mencatat transaksi. Uang modal <span className="font-bold underline">tidak masuk ke buku kas admin</span> karena diterima langsung oleh owner.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

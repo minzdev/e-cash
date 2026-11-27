@@ -17,8 +17,18 @@ export const DEFAULT_SETTINGS = {
   lowStockDefault: 5,
   initialCash: 626000,
   initialStockPcs: 133,
-  magatiFeePerPcs: 2000,
-  salesFeePerPcs: 0,
+  // Tiering Harga Jual
+  retailPrice: 50000,
+  wholesalePrice: 45000,
+  wholesaleMinQty: 20,
+  // Fee Magati
+  magatiFeeRetail: 5000,
+  magatiFeeWholesale: 2000,
+  magatiFeePerPcs: 2000, // fallback
+  // Fee Sales / Pembawa
+  salesFeeRetail: 5000,
+  salesFeeWholesale: 3000,
+  salesFeePerPcs: 3000, // fallback
   defaultSalesName: 'Pak bambang',
   reportProductTitle: 'SUSU KAMBING GIARVA',
   reportPeriod: 'BULAN JULI 2025',
@@ -27,11 +37,9 @@ export const DEFAULT_SETTINGS = {
 }
 
 export const PAYMENT_METHODS = [
-  { id: 'cash', label: 'Tunai', accent: 'emerald' },
-  { id: 'qris', label: 'QRIS', accent: 'violet' },
-  { id: 'transfer', label: 'Transfer', accent: 'sky' },
-  { id: 'card', label: 'Kartu', accent: 'amber' },
-  { id: 'rumah', label: 'Ambilan Rumah', accent: 'rose' },
+  { id: 'cash', label: 'Tunai (Diterima Kasir)', accent: 'emerald', desc: 'Uang fisik diterima admin · Uang modal masuk buku kas' },
+  { id: 'transfer', label: 'Transfer (Rekening Owner)', accent: 'sky', desc: 'Langsung transfer ke owner · Uang modal tidak masuk kasir' },
+  { id: 'rumah', label: 'Ambilan Rumah (Owner)', accent: 'rose', desc: 'Ambilan pribadi pemilik / tanpa pembayaran' },
 ]
 
 export function paymentLabel(id) {

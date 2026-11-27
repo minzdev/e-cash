@@ -37,7 +37,8 @@ export default function SalesPersons() {
 
   const [form, setForm] = useState({
     name: '',
-    feePerPcs: 0,
+    feeRetail: 5000,
+    feeWholesale: 3000,
     active: true,
   })
 
@@ -46,7 +47,8 @@ export default function SalesPersons() {
     setEditingPerson(null)
     setForm({
       name: '',
-      feePerPcs: Number(settings?.salesFeePerPcs) || 0,
+      feeRetail: Number(settings?.salesFeeRetail ?? 5000),
+      feeWholesale: Number(settings?.salesFeeWholesale ?? 3000),
       active: true,
     })
     setModalOpen(true)
@@ -57,7 +59,8 @@ export default function SalesPersons() {
     setEditingPerson(person)
     setForm({
       name: person.name || '',
-      feePerPcs: Number(person.feePerPcs) || 0,
+      feeRetail: Number(person.feeRetail ?? person.feePerPcs ?? settings?.salesFeeRetail ?? 5000),
+      feeWholesale: Number(person.feeWholesale ?? person.feePerPcs ?? settings?.salesFeeWholesale ?? 3000),
       active: person.active !== false,
     })
     setModalOpen(true)
@@ -75,7 +78,9 @@ export default function SalesPersons() {
     try {
       const payload = {
         name: form.name.trim(),
-        feePerPcs: Math.max(0, Number(form.feePerPcs) || 0),
+        feeRetail: Math.max(0, Number(form.feeRetail) || 0),
+        feeWholesale: Math.max(0, Number(form.feeWholesale) || 0),
+        feePerPcs: Math.max(0, Number(form.feeWholesale) || 0), // fallback
         active: form.active !== false,
       }
 
@@ -238,7 +243,7 @@ export default function SalesPersons() {
                 <tr className="border-b border-slate-200 bg-slate-50 font-bold text-slate-700">
                   <th className="px-3 py-3 text-center w-12">NO</th>
                   <th className="px-4 py-3 text-left">NAMA SALES / PEMBAWA</th>
-                  <th className="px-4 py-3 text-right w-44">FEE PER PCS</th>
+                  <th className="px-4 py-3 text-right w-52">KOMISI FEE / PCS</th>
                   <th className="px-4 py-3 text-center w-36">STATUS</th>
                   <th className="px-4 py-3 text-center w-40">TANGGAL DIBUAT</th>
                   <th className="px-4 py-3 text-center w-28">AKSI</th>
@@ -269,9 +274,15 @@ export default function SalesPersons() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right font-bold text-amber-700">
-                        {formatRupiah(person.feePerPcs || 0)}
-                        <span className="ml-1 text-[10px] font-normal text-slate-400">/ pcs</span>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-bold text-slate-800">
+                            Eceran: <span className="text-brand-700">{formatRupiah(person.feeRetail ?? person.feePerPcs ?? 5000)}</span>
+                          </span>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            Grosir: <span className="text-amber-700">{formatRupiah(person.feeWholesale ?? person.feePerPcs ?? 3000)}</span>
+                          </span>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
@@ -351,16 +362,28 @@ export default function SalesPersons() {
             autoFocus
           />
 
-          <Input
-            label="Fee per Pcs (Rp)"
-            type="number"
-            min="0"
-            step="500"
-            placeholder="0"
-            helperText="Besaran komisi yang diterima per pcs barang terjual oleh sales ini."
-            value={form.feePerPcs}
-            onChange={(e) => setForm((prev) => ({ ...prev, feePerPcs: e.target.value }))}
-          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input
+              label="Fee Eceran per Pcs (Rp)"
+              type="number"
+              min="0"
+              step="500"
+              placeholder="5000"
+              helperText="Komisi untuk penjualan eceran (< 20 pcs). Default Rp 5.000"
+              value={form.feeRetail}
+              onChange={(e) => setForm((prev) => ({ ...prev, feeRetail: e.target.value }))}
+            />
+            <Input
+              label="Fee Grosir per Pcs (Rp)"
+              type="number"
+              min="0"
+              step="500"
+              placeholder="3000"
+              helperText="Komisi untuk penjualan grosir (≥ 20 pcs). Default Rp 3.000"
+              value={form.feeWholesale}
+              onChange={(e) => setForm((prev) => ({ ...prev, feeWholesale: e.target.value }))}
+            />
+          </div>
 
           <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <div>

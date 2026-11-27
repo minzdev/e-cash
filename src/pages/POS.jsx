@@ -41,6 +41,10 @@ function CartPanel({
   salesPersonId,
   setSalesPersonId,
   salesPersons,
+  priceTier,
+  setPriceTier,
+  isGrosir,
+  wholesaleThreshold = 20,
   changeQty,
   removeItem,
   clearCart,
@@ -71,6 +75,64 @@ function CartPanel({
         </div>
       ) : null}
 
+      {lines.length > 0 ? (
+        <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-700">Opsi Harga:</span>
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setPriceTier('auto')}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 font-bold transition',
+                    priceTier === 'auto'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-500 hover:text-slate-800',
+                  )}
+                  title="Otomatis grosir jika pembelian >= 20 pcs"
+                >
+                  Otomatis
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriceTier('retail')}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 font-bold transition',
+                    priceTier === 'retail'
+                      ? 'bg-brand-600 text-white'
+                      : 'text-slate-500 hover:text-slate-800',
+                  )}
+                >
+                  Eceran (50rb)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPriceTier('wholesale')}
+                  className={cn(
+                    'rounded px-1.5 py-0.5 font-bold transition',
+                    priceTier === 'wholesale'
+                      ? 'bg-amber-600 text-white'
+                      : 'text-slate-500 hover:text-slate-800',
+                  )}
+                >
+                  Grosir (45rb)
+                </button>
+              </div>
+            </div>
+            {isGrosir ? (
+              <Badge tone="amber">Grosir (≥{wholesaleThreshold} pcs)</Badge>
+            ) : (
+              <Badge tone="slate">Eceran ({itemCount}/{wholesaleThreshold} pcs)</Badge>
+            )}
+          </div>
+          <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Harga Jual: <strong className={isGrosir ? 'text-amber-700' : 'text-brand-700'}>{isGrosir ? 'Rp 45.000' : 'Rp 50.000'}</strong>/pcs</span>
+            <span>Fee Magati: <strong className="text-amber-700">{isGrosir ? 'Rp 2.000' : 'Rp 5.000'}</strong> · Fee Sales: <strong className="text-emerald-700">{isGrosir ? 'Rp 3.000' : 'Rp 5.000'}</strong></span>
+          </div>
+        </div>
+      ) : null}
+
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
         {lines.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center py-10 text-center">
@@ -84,56 +146,63 @@ function CartPanel({
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {lines.map((line) => (
-              <div key={line.productId} className="flex gap-2.5 py-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-base">
-                  {line.product.emoji || '📦'}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start gap-2">
-                    <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
-                      {line.product.name}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(line.productId)}
-                      className="-mr-0.5 -mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
-                      aria-label={`Hapus ${line.product.name}`}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                  <p className="mt-0.5 text-[10px] text-slate-400">
-                    {formatRupiah(line.product.price)} · stok {line.product.stock}
-                  </p>
-                  <div className="mt-1.5 flex items-center justify-between">
-                    <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white">
+            {lines.map((line) => {
+              const activePrice = Number(line.unitPrice || line.product.price)
+              return (
+                <div key={line.productId} className="flex gap-2.5 py-2.5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-base">
+                    {line.product.emoji || '📦'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <p className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-800">
+                        {line.product.name}
+                      </p>
                       <button
                         type="button"
-                        onClick={() => changeQty(line.productId, line.qty - 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-l-lg text-slate-500 transition hover:bg-slate-50 active:bg-slate-100"
-                        aria-label="Kurangi jumlah"
+                        onClick={() => removeItem(line.productId)}
+                        className="-mr-0.5 -mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                        aria-label={`Hapus ${line.product.name}`}
                       >
-                        <Minus size={12} />
-                      </button>
-                      <span className="w-7 text-center text-xs font-bold text-slate-800">{line.qty}</span>
-                      <button
-                        type="button"
-                        onClick={() => changeQty(line.productId, line.qty + 1)}
-                        disabled={line.qty >= Number(line.product.stock)}
-                        className="flex h-7 w-7 items-center justify-center rounded-r-lg text-slate-500 transition hover:bg-slate-50 active:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
-                        aria-label="Tambah jumlah"
-                      >
-                        <Plus size={12} />
+                        <X size={13} />
                       </button>
                     </div>
-                    <p className="text-xs font-bold text-slate-800">
-                      {formatRupiah(line.product.price * line.qty)}
-                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-400">
+                      <span className={isGrosir ? 'font-bold text-amber-700' : 'text-slate-600'}>
+                        {formatRupiah(activePrice)}
+                      </span>
+                      {isGrosir ? <span className="rounded bg-amber-50 px-1 text-[9px] font-bold text-amber-700">Grosir</span> : null}
+                      <span>· stok {line.product.stock}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white">
+                        <button
+                          type="button"
+                          onClick={() => changeQty(line.productId, line.qty - 1)}
+                          className="flex h-7 w-7 items-center justify-center rounded-l-lg text-slate-500 transition hover:bg-slate-50 active:bg-slate-100"
+                          aria-label="Kurangi jumlah"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-7 text-center text-xs font-bold text-slate-800">{line.qty}</span>
+                        <button
+                          type="button"
+                          onClick={() => changeQty(line.productId, line.qty + 1)}
+                          disabled={line.qty >= Number(line.product.stock)}
+                          className="flex h-7 w-7 items-center justify-center rounded-r-lg text-slate-500 transition hover:bg-slate-50 active:bg-slate-100 disabled:pointer-events-none disabled:opacity-30"
+                          aria-label="Tambah jumlah"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                      <p className="text-xs font-bold text-slate-800">
+                        {formatRupiah(activePrice * line.qty)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -246,6 +315,7 @@ export default function POS() {
   const [customerName, setCustomerName] = useState('')
   const [note, setNote] = useState('')
   const [salesPersonId, setSalesPersonId] = useState('')
+  const [priceTier, setPriceTier] = useState('auto') // 'auto' | 'retail' | 'wholesale'
   const [cartOpen, setCartOpen] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
 
@@ -267,19 +337,32 @@ export default function POS() {
     })
   }, [products, category, search])
 
+  const wholesaleThreshold = Number(settings?.wholesaleMinQty) || 20
+  const rawTotalQty = useMemo(() => cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0), [cart])
+  const isGrosir = priceTier === 'wholesale' || (priceTier !== 'retail' && rawTotalQty >= wholesaleThreshold)
+
   const cartLines = useMemo(
     () =>
       cart
         .map((line) => {
           const product = products.find((item) => item.id === line.productId)
-          return product ? { ...line, product } : null
+          if (!product) return null
+          const basePrice = Number(product.price) || (Number(settings?.retailPrice) || 50000)
+          const wholesalePrice = Number(product.wholesalePrice) || (basePrice >= 50000 ? (Number(settings?.wholesalePrice) || 45000) : basePrice)
+          const effectivePrice = isGrosir ? wholesalePrice : basePrice
+          return {
+            ...line,
+            product,
+            unitPrice: effectivePrice,
+            subtotal: effectivePrice * (Number(line.qty) || 1),
+          }
         })
         .filter(Boolean),
-    [cart, products],
+    [cart, products, isGrosir, settings],
   )
 
   const itemCount = cartLines.reduce((sum, line) => sum + line.qty, 0)
-  const subtotal = cartLines.reduce((sum, line) => sum + Number(line.product.price) * line.qty, 0)
+  const subtotal = cartLines.reduce((sum, line) => sum + line.subtotal, 0)
   const discountValue = Math.min(Math.max(0, Number(discount) || 0), subtotal)
   const taxRate = settings.taxEnabled ? Number(settings.taxRate) || 0 : 0
   const tax = Math.round(((subtotal - discountValue) * taxRate) / 100)
@@ -367,6 +450,10 @@ export default function POS() {
     salesPersonId,
     setSalesPersonId,
     salesPersons: salesPersons || [],
+    priceTier,
+    setPriceTier,
+    isGrosir,
+    wholesaleThreshold,
     changeQty,
     removeItem,
     clearCart,
@@ -581,7 +668,10 @@ export default function POS() {
         itemCount={itemCount}
         salesPersonId={salesPersonId}
         salesPersonName={selectedSalesPerson?.name || ''}
-        salesFeePerPcs={selectedSalesPerson?.feePerPcs || 0}
+        salesFeeRetail={Number(selectedSalesPerson?.feeRetail ?? selectedSalesPerson?.feePerPcs ?? settings?.salesFeeRetail ?? 5000)}
+        salesFeeWholesale={Number(selectedSalesPerson?.feeWholesale ?? selectedSalesPerson?.feePerPcs ?? settings?.salesFeeWholesale ?? 3000)}
+        isGrosir={isGrosir}
+        priceTier={isGrosir ? 'wholesale' : 'retail'}
       />
     </div>
   )
