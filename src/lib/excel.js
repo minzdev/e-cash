@@ -96,12 +96,13 @@ export async function exportFinanceTemplateExcel({
     { key: 'magati', width: 16 },    // I: Pemdapatan Magati
     { key: 'modal', width: 14 },     // J: Uang Modal
     { key: 'tfSaldo', width: 14 },   // K: TF Saldo
-    { key: 'saldoKas', width: 16 },  // L: SALDO
-    { key: 'pelanggan', width: 24 }, // M: Keterangan Pelanggan
+    { key: 'cashOut', width: 16 },   // L: Kas Keluar / Operasional
+    { key: 'saldoKas', width: 16 },  // M: SALDO
+    { key: 'pelanggan', width: 24 }, // N: Keterangan Pelanggan
   ]
 
   // 1. JUDUL LAPORAN (Baris 1)
-  sheet.mergeCells('A1:M1')
+  sheet.mergeCells('A1:N1')
   const title1 = sheet.getCell('A1')
   title1.value = `LAPORAN SALDO DAN KELUAR MASUK ${titleProduct.toUpperCase()}`
   title1.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } }
@@ -109,7 +110,7 @@ export async function exportFinanceTemplateExcel({
   sheet.getRow(1).height = 28
 
   // 2. SUBJUDUL PERIODE (Baris 2)
-  sheet.mergeCells('A2:M2')
+  sheet.mergeCells('A2:N2')
   const title2 = sheet.getCell('A2')
   title2.value = reportPeriod.toUpperCase()
   title2.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } }
@@ -143,20 +144,21 @@ export async function exportFinanceTemplateExcel({
   sheet.getCell('G4').value = 'Saldo'
   sheet.getCell('G5').value = 'Pcs'
 
-  // Transaksi Grup: H4:K4
-  sheet.mergeCells('H4:K4')
+  // Transaksi Grup: H4:L4
+  sheet.mergeCells('H4:L4')
   sheet.getCell('H4').value = 'Transaksi'
 
   sheet.getCell('H5').value = 'OMZET'
   sheet.getCell('I5').value = 'Pemdapatan\nMagati'
   sheet.getCell('J5').value = 'Uang Modal'
   sheet.getCell('K5').value = 'TF Saldo'
-
-  sheet.mergeCells('L4:L5')
-  sheet.getCell('L4').value = 'SALDO'
+  sheet.getCell('L5').value = 'Kas Keluar /\nOperasional'
 
   sheet.mergeCells('M4:M5')
-  sheet.getCell('M4').value = 'Keterangan Pelanggan'
+  sheet.getCell('M4').value = 'SALDO'
+
+  sheet.mergeCells('N4:N5')
+  sheet.getCell('N4').value = 'Keterangan Pelanggan'
 
   // Format styling seluruh sel header di baris 4 dan 5
   const HEADER_FILL = {
@@ -168,7 +170,7 @@ export async function exportFinanceTemplateExcel({
   for (let r = 4; r <= 5; r += 1) {
     const row = sheet.getRow(r)
     row.height = r === 5 ? 26 : 20
-    for (let c = 1; c <= 13; c += 1) {
+    for (let c = 1; c <= 14; c += 1) {
       const cell = row.getCell(c)
       cell.fill = HEADER_FILL
       cell.border = BLACK_THIN_BORDER
@@ -184,20 +186,20 @@ export async function exportFinanceTemplateExcel({
   saldoAwalLabel.font = { name: 'Calibri', size: 11, bold: true }
   saldoAwalLabel.alignment = { vertical: 'middle', horizontal: 'center' }
 
-  // Set nilai saldo awal di kolom G (Pcs) dan Kolom L (SALDO Kas)
+  // Set nilai saldo awal di kolom G (Pcs) dan Kolom M (SALDO Kas)
   sheet.getCell('G6').value = initialStockPcs
   sheet.getCell('G6').font = { name: 'Calibri', size: 11, bold: true }
   sheet.getCell('G6').alignment = { vertical: 'middle', horizontal: 'center' }
   sheet.getCell('G6').numFmt = '#,##0'
 
-  sheet.getCell('L6').value = initialCash
-  sheet.getCell('L6').font = { name: 'Calibri', size: 11, bold: true }
-  sheet.getCell('L6').alignment = { vertical: 'middle', horizontal: 'right' }
-  sheet.getCell('L6').numFmt = '#,##0'
+  sheet.getCell('M6').value = initialCash
+  sheet.getCell('M6').font = { name: 'Calibri', size: 11, bold: true }
+  sheet.getCell('M6').alignment = { vertical: 'middle', horizontal: 'right' }
+  sheet.getCell('M6').numFmt = '#,##0'
 
   const row6 = sheet.getRow(6)
   row6.height = 24
-  for (let c = 1; c <= 13; c += 1) {
+  for (let c = 1; c <= 14; c += 1) {
     const cell = row6.getCell(c)
     cell.border = BLACK_THIN_BORDER
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1F5' } }
@@ -214,6 +216,7 @@ export async function exportFinanceTemplateExcel({
   let sumMagati = 0
   let sumModal = 0
   let sumTfSaldo = 0
+  let sumCashOut = 0
 
   records.forEach((rec, idx) => {
     const rIdx = 7 + idx
@@ -232,8 +235,7 @@ export async function exportFinanceTemplateExcel({
     // Hitung running balance
     currentStock = currentStock + inD - outD - outB
     
-    // Perhitungan kas: sesuai template user, kas bertambah dengan fee magati dan tf saldo, atau omzet
-    // Jika ada omzet tapi magati = 0, kita tambahkan omzet. Namun jika magati terisi, bertambah sebesar magati + tf - outKas
+    // Perhitungan kas: sesuai template user, kas bertambah dengan fee magati dan tf saldo, atau omzet dikurangi pengeluaran operasional
     if (mag > 0) {
       currentCash += mag + tf - outKas
     } else if (omz > 0 && rec.type !== 'rumah') {
@@ -249,6 +251,7 @@ export async function exportFinanceTemplateExcel({
     sumMagati += mag
     sumModal += mod
     sumTfSaldo += tf
+    sumCashOut += outKas
 
     // Format tanggal
     let dateStr = rec.date || ''
@@ -271,11 +274,12 @@ export async function exportFinanceTemplateExcel({
     row.getCell(9).value = mag > 0 ? mag : ''
     row.getCell(10).value = mod > 0 ? mod : ''
     row.getCell(11).value = tf > 0 ? tf : ''
-    row.getCell(12).value = currentCash
-    row.getCell(13).value = rec.customerNote || (rec.type === 'rumah' ? 'Rumah' : '-')
+    row.getCell(12).value = outKas > 0 ? -outKas : ''
+    row.getCell(13).value = currentCash
+    row.getCell(14).value = rec.customerNote || (rec.type === 'rumah' ? 'Rumah' : '-')
 
     // Border & format angka
-    for (let c = 1; c <= 13; c += 1) {
+    for (let c = 1; c <= 14; c += 1) {
       const cell = row.getCell(c)
       cell.border = BLACK_THIN_BORDER
       cell.font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } }
@@ -283,9 +287,12 @@ export async function exportFinanceTemplateExcel({
       if (c === 1 || c === 2 || c === 4 || c === 5 || c === 6 || c === 7) {
         cell.alignment = { vertical: 'middle', horizontal: 'center' }
         if (c >= 4 && c <= 7 && typeof cell.value === 'number') cell.numFmt = '#,##0'
-      } else if (c >= 8 && c <= 12) {
+      } else if (c >= 8 && c <= 13) {
         cell.alignment = { vertical: 'middle', horizontal: 'right' }
         if (typeof cell.value === 'number') cell.numFmt = '#,##0'
+        if (c === 12 && typeof cell.value === 'number') {
+          cell.font = { name: 'Calibri', size: 10, color: { argb: 'FFDC2626' } } // Warna merah untuk kas keluar
+        }
       } else {
         cell.alignment = { vertical: 'middle', horizontal: 'left' }
       }
@@ -311,10 +318,11 @@ export async function exportFinanceTemplateExcel({
   footerRow.getCell(9).value = sumMagati
   footerRow.getCell(10).value = sumModal > 0 ? sumModal : '-'
   footerRow.getCell(11).value = sumTfSaldo > 0 ? sumTfSaldo : ''
-  footerRow.getCell(12).value = currentCash // Saldo Akhir Kas
-  footerRow.getCell(13).value = ''
+  footerRow.getCell(12).value = sumCashOut > 0 ? -sumCashOut : ''
+  footerRow.getCell(13).value = currentCash // Saldo Akhir Kas
+  footerRow.getCell(14).value = ''
 
-  for (let c = 1; c <= 13; c += 1) {
+  for (let c = 1; c <= 14; c += 1) {
     const cell = footerRow.getCell(c)
     cell.border = BLACK_TOTAL_BORDER
     cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } }
@@ -322,9 +330,12 @@ export async function exportFinanceTemplateExcel({
     if (c === 1 || c === 4 || c === 5 || c === 6 || c === 7) {
       cell.alignment = { vertical: 'middle', horizontal: 'center' }
       if (typeof cell.value === 'number') cell.numFmt = '#,##0'
-    } else if (c >= 8 && c <= 12) {
+    } else if (c >= 8 && c <= 13) {
       cell.alignment = { vertical: 'middle', horizontal: 'right' }
       if (typeof cell.value === 'number') cell.numFmt = '#,##0'
+      if (c === 12 && typeof cell.value === 'number') {
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFDC2626' } }
+      }
     } else {
       cell.alignment = { vertical: 'middle', horizontal: 'left' }
     }

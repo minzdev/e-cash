@@ -418,7 +418,7 @@ export default function Finance() {
       />
 
       {/* Kartu Ringkasan Indikator Keuangan Sesuai Template User */}
-      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {/* Saldo Kas */}
         <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 p-4 shadow-sm">
           <div className="flex items-center justify-between text-emerald-800">
@@ -455,6 +455,19 @@ export default function Finance() {
           <div className="mt-2 flex items-center justify-between border-t border-amber-200/60 pt-2 text-[11px] text-slate-600">
             <span>Tarif: {formatRupiah(settings?.magatiFeePerPcs ?? 2000)} / pcs</span>
             <span className="font-bold text-amber-700">{totals.outDus} pcs keluar</span>
+          </div>
+        </div>
+
+        {/* Total Kas Keluar / Operasional */}
+        <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-500/10 to-red-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-rose-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Total Kas Keluar</span>
+            <TrendingDown size={18} className="text-rose-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-rose-700">{formatRupiah(totals.cashOut)}</p>
+          <div className="mt-2 flex items-center justify-between border-t border-rose-200/60 pt-2 text-[11px] text-slate-600">
+            <span>Operasional & Lain-lain</span>
+            <span className="font-bold text-rose-600">Pengurangan Kas</span>
           </div>
         </div>
 
@@ -526,7 +539,7 @@ export default function Finance() {
                 <th className="border border-slate-300 px-2 py-1 text-center w-16">Out</th>
                 <th className="border border-slate-300 px-2 py-1 text-center w-20">Out</th>
                 <th className="border border-slate-300 px-2 py-1 text-center w-20">Saldo</th>
-                <th colSpan={4} className="border border-slate-300 px-2 py-1 text-center">Transaksi</th>
+                <th colSpan={5} className="border border-slate-300 px-2 py-1 text-center">Transaksi</th>
                 <th rowSpan={2} className="border border-slate-300 px-3 py-2.5 text-right w-28">SALDO</th>
                 <th rowSpan={2} className="border border-slate-300 px-3 py-2.5 text-left min-w-[150px]">Keterangan Pelanggan</th>
                 <th rowSpan={2} className="border border-slate-300 px-2 py-2.5 text-center w-20">Aksi</th>
@@ -540,6 +553,7 @@ export default function Finance() {
                 <th className="border border-slate-300 px-3 py-1 text-right w-28">Pendapatan Magati</th>
                 <th className="border border-slate-300 px-3 py-1 text-right w-24">Uang Modal</th>
                 <th className="border border-slate-300 px-3 py-1 text-right w-24">TF Saldo</th>
+                <th className="border border-slate-300 px-3 py-1 text-right w-28 text-rose-700">Kas Keluar / Operasional</th>
               </tr>
             </thead>
 
@@ -555,6 +569,7 @@ export default function Finance() {
                 <td className="border border-slate-300 px-2 py-2 text-center font-extrabold text-sky-800">
                   {settings?.initialStockPcs ?? 133}
                 </td>
+                <td className="border border-slate-300 px-3 py-2 text-right text-slate-400">-</td>
                 <td className="border border-slate-300 px-3 py-2 text-right text-slate-400">-</td>
                 <td className="border border-slate-300 px-3 py-2 text-right text-slate-400">-</td>
                 <td className="border border-slate-300 px-3 py-2 text-right text-slate-400">-</td>
@@ -643,6 +658,11 @@ export default function Finance() {
                       <td className="border border-slate-200 px-3 py-2 text-right font-bold text-emerald-700">
                         {row.tfSaldo > 0 ? formatNumber(row.tfSaldo) : ''}
                       </td>
+                      <td className="border border-slate-200 px-3 py-2 text-right font-bold text-rose-600">
+                        {row.cashOut > 0 ? (
+                          <span>-{formatNumber(row.cashOut)}</span>
+                        ) : ''}
+                      </td>
                       <td className="border border-slate-200 px-3 py-2 text-right font-extrabold text-emerald-700">
                         {formatNumber(row.runningCash)}
                       </td>
@@ -724,6 +744,9 @@ export default function Finance() {
                 </td>
                 <td className="border border-slate-300 px-3 py-2.5 text-right text-emerald-800">
                   {totals.tfSaldo > 0 ? formatNumber(totals.tfSaldo) : ''}
+                </td>
+                <td className="border border-slate-300 px-3 py-2.5 text-right text-rose-700 font-bold">
+                  {totals.cashOut > 0 ? `-${formatNumber(totals.cashOut)}` : ''}
                 </td>
                 <td className="border border-slate-300 px-3 py-2.5 text-right text-emerald-800 font-black">
                   {formatNumber(endingCash)}
