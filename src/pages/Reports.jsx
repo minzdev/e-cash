@@ -21,7 +21,7 @@ import {
 } from '../lib/analytics'
 import { PAYMENT_METHODS, paymentLabel } from '../lib/constants'
 import { dateKey, formatCompact, formatDate, formatNumber, formatRupiah } from '../lib/format'
-import { exportSalesCsv } from '../lib/csv'
+import { exportSalesCsv, exportSalesExcel } from '../lib/csv'
 import {
   Badge,
   Button,
@@ -132,13 +132,18 @@ export default function Reports() {
     if (next !== 'custom') setRange(rangeForPreset(next))
   }
 
-  function handleExport() {
+  function handleExport(format = 'excel') {
     if (!filtered.length) {
       toast.info('Tidak ada transaksi pada periode ini.')
       return
     }
-    exportSalesCsv(filtered, range.from, range.to, settings)
-    toast.success('Laporan CSV berhasil diunduh')
+    if (format === 'csv') {
+      exportSalesCsv(filtered, range.from, range.to, settings)
+      toast.success('Laporan CSV (Excel) berhasil diunduh')
+    } else {
+      exportSalesExcel(filtered, range.from, range.to, settings)
+      toast.success('Laporan Excel (.xlsx) berhasil diunduh')
+    }
   }
 
   return (
@@ -147,9 +152,14 @@ export default function Reports() {
         title="Laporan keuangan"
         description={`Periode ${formatDate(`${range.from}T00:00:00`, 'dd MMM yyyy')} – ${formatDate(`${range.to}T00:00:00`, 'dd MMM yyyy')}`}
         action={
-          <Button size="md" icon={Download} onClick={handleExport}>
-            Ekspor CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="md" icon={Download} onClick={() => handleExport('excel')}>
+              Ekspor Excel (.xlsx)
+            </Button>
+            <Button variant="secondary" size="md" onClick={() => handleExport('csv')}>
+              CSV
+            </Button>
+          </div>
         }
       />
 

@@ -1,15 +1,24 @@
+import * as XLSX from 'xlsx'
 import { formatDate, formatDateTime } from './format'
 import { paymentLabel } from './constants'
 
-function escapeCell(value) {
+function escapeCsvCell(value, delimiter = ';') {
   const text = value === null || value === undefined ? '' : String(value)
-  if (/[",\n\r;]/.test(text)) return `"${text.replaceAll('"', '""')}"`
+  if (text.includes('"') || text.includes('\n') || text.includes('\r') || text.includes(delimiter)) {
+    return `"${text.replaceAll('"', '""')}"`
+  }
   return text
 }
 
-export function downloadCsv(filename, rows) {
-  const content = rows.map((row) => row.map(escapeCell).join(',')).join('\r\n')
-  const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8;' })
+export function downloadCsv(filename, rows, delimiter = ';') {
+  // sep=; memberitahu Microsoft Excel untuk otomatis menggunakan pemisah titik koma
+  const sepHeader = `sep=${delimiter}\r\n`
+  const content = rows
+    .map((row) => row.map((cell) => escapeCsvCell(cell, delimiter)).join(delimiter))
+    .join('\r\n')
+  const blob = new Blob([`\uFEFF${sepHeader}${content}`], {
+    type: 'text/csv;charset=utf-8;',
+  })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
@@ -20,10 +29,7 @@ export function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url)
 }
 
-/**
- * Ekspor laporan penjualan dalam format CSV profesional
- */
-export function exportSalesCsv(sales = [], fromLabel = '', toLabel = '', settings = {}) {
+function buildReportRows(sales = [], fromLabel = '', toLabel = '', settings = {}) {
   const storeName = settings?.storeName || 'E-Cash POS'
   const generatedAt = formatDateTime(new Date())
   const validSales = sales.filter((s) => s.status !== 'void')
@@ -49,10 +55,7 @@ export function exportSalesCsv(sales = [], fromLabel = '', toLabel = '', setting
     ['Waktu Ekspor', generatedAt],
     [
       'Ringkasan',
-      `Total: ${sales.length} transaksi`,
-      `Lunas: ${validSales.length}`,
-      `Void: ${voidSales.length}`,
-      `Total Omzet: Rp ${totalOmzet.toLocaleString('id-ID')}`,
+      `Total: ${sales.length} transaksi (${validSales.length} Lunas, ${voidSales.length} Void) · Total Omzet: Rp ${totalOmzet.toLocaleString('id-ID')}`,
     ],
     [], // Baris kosong pemisah
 
@@ -83,7 +86,7 @@ export function exportSalesCsv(sales = [], fromLabel = '', toLabel = '', setting
   sales.forEach((sale, index) => {
     const itemDetails = (sale.items || [])
       .map((item) => `${item.qty}x ${item.name}`)
-      .join('; ')
+      .join(', ')
     const itemCount = (sale.items || []).reduce((sum, item) => sum + (Number(item.qty) || 0), 0)
 
     rows.push([
@@ -133,6 +136,49 @@ export function exportSalesCsv(sales = [], fromLabel = '', toLabel = '', setting
     'Nilai dalam Rupiah (IDR)',
   ])
 
+  return { rows, storeName }
+}
+
+/**
+ * Ekspor laporan ke file native Microsoft Excel (.xlsx) dengan kolom rapi dan terformat
+ */
+export function exportSalesExcel(sales = [], fromLabel = '', toLabel = '', settings = {}) {
+  const { rows, storeName } = buildReportRows(sales, fromLabel, toLabel, settings)
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.aoa_to_sheet(rows)
+
+  // Lebar kolom rapi dan proporsional untuk Excel
+  ws['!cols'] = [
+    { wch: 6 },  // No
+    { wch: 22 }, // No. Invoice
+    { wch: 14 }, // Tanggal
+    { wch: 10 }, // Waktu
+    { wch: 16 }, // Kasir
+    { wch: 20 }, // Pelanggan
+    { wch: 15 }, // Metode Bayar
+    { wch: 14 }, // Status
+    { wch: 10 }, // Jml Qty
+    { wch: 38 }, // Rincian Produk
+    { wch: 16 }, // Subtotal (Rp)
+    { wch: 14 }, // Diskon (Rp)
+    { wch: 14 }, // PPN (Rp)
+    { wch: 14 }, // Ongkir (Rp)
+    { wch: 18 }, // Total Akhir (Rp)
+    { wch: 16 }, // Dibayar (Rp)
+    { wch: 14 }, // Kembalian (Rp)
+    { wch: 26 }, // Catatan
+  ]
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Laporan Penjualan')
+  const safeFilename = `Laporan-Penjualan-${storeName.replace(/[^a-zA-Z0-9]/g, '_')}-${fromLabel}_sd_${toLabel}.xlsx`
+  XLSX.writeFile(wb, safeFilename)
+}
+
+/**
+ * Ekspor laporan ke format CSV dengan pemisah titik koma (;) standar Excel Windows
+ */
+export function exportSalesCsv(sales = [], fromLabel = '', toLabel = '', settings = {}) {
+  const { rows, storeName } = buildReportRows(sales, fromLabel, toLabel, settings)
   const safeFilename = `Laporan-Penjualan-${storeName.replace(/[^a-zA-Z0-9]/g, '_')}-${fromLabel}_sd_${toLabel}.csv`
-  downloadCsv(safeFilename, rows)
+  downloadCsv(safeFilename, rows, ';')
 }

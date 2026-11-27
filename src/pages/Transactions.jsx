@@ -18,7 +18,7 @@ import { filterSales, summarize } from '../lib/analytics'
 import { PAYMENT_METHODS, paymentLabel } from '../lib/constants'
 import { dateKey, formatDate, formatDateTime, formatNumber, formatRupiah } from '../lib/format'
 import { buildReceiptText, whatsappLink } from '../lib/receipt'
-import { exportSalesCsv } from '../lib/csv'
+import { exportSalesCsv, exportSalesExcel } from '../lib/csv'
 import {
   Badge,
   Button,
@@ -105,21 +105,37 @@ export default function Transactions() {
         title="Transaksi"
         description="Riwayat penjualan, pembatalan, dan cetak ulang struk."
         action={
-          <Button
-            variant="secondary"
-            size="md"
-            icon={Download}
-            onClick={() => {
-              if (!filtered.length) {
-                toast.info('Tidak ada transaksi untuk diekspor pada rentang ini.')
-                return
-              }
-              exportSalesCsv(filtered, from, to, settings)
-              toast.success('CSV berhasil diunduh')
-            }}
-          >
-            Ekspor CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              size="md"
+              icon={Download}
+              onClick={() => {
+                if (!filtered.length) {
+                  toast.info('Tidak ada transaksi untuk diekspor pada rentang ini.')
+                  return
+                }
+                exportSalesExcel(filtered, from, to, settings)
+                toast.success('Laporan Excel (.xlsx) berhasil diunduh')
+              }}
+            >
+              Ekspor Excel (.xlsx)
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => {
+                if (!filtered.length) {
+                  toast.info('Tidak ada transaksi untuk diekspor pada rentang ini.')
+                  return
+                }
+                exportSalesCsv(filtered, from, to, settings)
+                toast.success('Laporan CSV (Excel) berhasil diunduh')
+              }}
+            >
+              CSV
+            </Button>
+          </div>
         }
       />
 
