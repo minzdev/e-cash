@@ -150,7 +150,8 @@ export default function PaymentDialog({
       onSuccess?.(sale)
       toast.success(method === 'rumah' ? 'Ambilan rumah berhasil dicatat' : 'Pembayaran berhasil disimpan')
     } catch (error) {
-      toast.error(error.message || 'Gagal menyimpan transaksi')
+      console.error('[PaymentDialog] Error saat membuat transaksi:', error)
+      toast.error(error?.message || 'Gagal menyimpan transaksi')
     } finally {
       setProcessing(false)
     }
