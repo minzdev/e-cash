@@ -7,6 +7,7 @@ const listeners = {
   products: new Set(),
   sales: new Set(),
   settings: new Set(),
+  financeRecords: new Set(),
 }
 
 let cache = null
@@ -50,13 +51,86 @@ function sortSales(list) {
 
 function emit(name) {
   const state = load()
-  const payload =
-    name === 'products'
-      ? sortProducts(state.products)
-      : name === 'sales'
-        ? sortSales(state.sales)
-        : { ...DEFAULT_SETTINGS, ...state.settings }
-  listeners[name].forEach((callback) => callback(payload))
+  let payload = null
+  if (name === 'products') payload = sortProducts(state.products)
+  else if (name === 'sales') payload = sortSales(state.sales)
+  else if (name === 'settings') payload = { ...DEFAULT_SETTINGS, ...state.settings }
+  else if (name === 'financeRecords') {
+    payload = [...(state.financeRecords || [])].sort(
+      (a, b) => (toDate(a.date || a.createdAt)?.getTime() || 0) - (toDate(b.date || b.createdAt)?.getTime() || 0),
+    )
+  }
+  listeners[name]?.forEach((callback) => callback(payload))
+}
+
+export function subscribeFinanceRecords(callback) {
+  const state = load()
+  if (!state.financeRecords) {
+    state.financeRecords = []
+    persist()
+  }
+  listeners.financeRecords.add(callback)
+  const sorted = [...state.financeRecords].sort(
+    (a, b) => (toDate(a.date || a.createdAt)?.getTime() || 0) - (toDate(b.date || b.createdAt)?.getTime() || 0),
+  )
+  callback(sorted)
+  return () => listeners.financeRecords.delete(callback)
+}
+
+export async function createFinanceRecord(input) {
+  const state = load()
+  if (!state.financeRecords) state.financeRecords = []
+  const now = new Date().toISOString()
+  const record = {
+    ...input,
+    id: uid(),
+    inDus: Number(input.inDus) || 0,
+    outDus: Number(input.outDus) || 0,
+    outBnsDus: Number(input.outBnsDus) || 0,
+    omzet: Number(input.omzet) || 0,
+    magatiFee: Number(input.magatiFee) || 0,
+    salesFee: Number(input.salesFee) || 0,
+    uangModal: Number(input.uangModal) || 0,
+    tfSaldo: Number(input.tfSaldo) || 0,
+    cashOut: Number(input.cashOut) || 0,
+    createdAt: now,
+    updatedAt: now,
+  }
+  state.financeRecords.push(record)
+  persist()
+  emit('financeRecords')
+  return record.id
+}
+
+export async function updateFinanceRecord(id, input) {
+  const state = load()
+  if (!state.financeRecords) state.financeRecords = []
+  const index = state.financeRecords.findIndex((r) => r.id === id)
+  if (index === -1) throw new Error('Data keuangan tidak ditemukan.')
+  state.financeRecords[index] = {
+    ...state.financeRecords[index],
+    ...input,
+    inDus: Number(input.inDus) || 0,
+    outDus: Number(input.outDus) || 0,
+    outBnsDus: Number(input.outBnsDus) || 0,
+    omzet: Number(input.omzet) || 0,
+    magatiFee: Number(input.magatiFee) || 0,
+    salesFee: Number(input.salesFee) || 0,
+    uangModal: Number(input.uangModal) || 0,
+    tfSaldo: Number(input.tfSaldo) || 0,
+    cashOut: Number(input.cashOut) || 0,
+    updatedAt: new Date().toISOString(),
+  }
+  persist()
+  emit('financeRecords')
+}
+
+export async function deleteFinanceRecord(id) {
+  const state = load()
+  if (!state.financeRecords) return
+  state.financeRecords = state.financeRecords.filter((r) => r.id !== id)
+  persist()
+  emit('financeRecords')
 }
 
 export function subscribeProducts(callback) {

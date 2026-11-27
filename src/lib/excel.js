@@ -44,6 +44,305 @@ const TOTAL_BORDER = {
   right: { style: 'thin', color: { argb: COLORS.darkBorder } },
 }
 
+const BLACK_THIN_BORDER = {
+  top: { style: 'thin', color: { argb: 'FF000000' } },
+  left: { style: 'thin', color: { argb: 'FF000000' } },
+  bottom: { style: 'thin', color: { argb: 'FF000000' } },
+  right: { style: 'thin', color: { argb: 'FF000000' } },
+}
+
+const BLACK_TOTAL_BORDER = {
+  top: { style: 'thin', color: { argb: 'FF000000' } },
+  left: { style: 'thin', color: { argb: 'FF000000' } },
+  bottom: { style: 'double', color: { argb: 'FF000000' } },
+  right: { style: 'thin', color: { argb: 'FF000000' } },
+}
+
+/**
+ * EKSPOR LAPORAN KEUANGAN FORMAT KHUSUS SESUAI TEMPLATE USER (SUSU KAMBING / PRODUK)
+ * Menghasilkan tabel persis dengan kolom:
+ * NO | TGL | KETERANGAN | IN Dus | Out Dus | Out Bns Dus | Saldo Pcs | OMZET | Pendapatan Magati | Uang Modal | TF Saldo | SALDO | Keterangan Pelanggan
+ */
+export async function exportFinanceTemplateExcel({
+  records = [],
+  settings = {},
+  period = '',
+  productTitle = '',
+}) {
+  const storeName = settings?.storeName || 'E-Cash'
+  const titleProduct = productTitle || settings?.reportProductTitle || 'SUSU KAMBING GIARVA'
+  const reportPeriod = period || settings?.reportPeriod || 'BULAN JULI 2025'
+  const initialCash = Number(settings?.initialCash) || 626000
+  const initialStockPcs = Number(settings?.initialStockPcs) || 133
+
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'E-Cash'
+  workbook.created = new Date()
+
+  const sheet = workbook.addWorksheet('Laporan Saldo & Keluar Masuk', {
+    views: [{ showGridLines: true }],
+  })
+
+  // Set lebar kolom agar teks proporsional dan tidak terpotong
+  sheet.columns = [
+    { key: 'no', width: 6 },        // A: NO
+    { key: 'tgl', width: 14 },       // B: TGL
+    { key: 'ket', width: 22 },       // C: KETERANGAN
+    { key: 'inDus', width: 8 },      // D: IN Dus
+    { key: 'outDus', width: 8 },     // E: Out Dus
+    { key: 'outBns', width: 10 },    // F: Out Bns Dus
+    { key: 'saldoPcs', width: 10 },  // G: Saldo Pcs
+    { key: 'omzet', width: 16 },     // H: OMZET
+    { key: 'magati', width: 16 },    // I: Pemdapatan Magati
+    { key: 'modal', width: 14 },     // J: Uang Modal
+    { key: 'tfSaldo', width: 14 },   // K: TF Saldo
+    { key: 'saldoKas', width: 16 },  // L: SALDO
+    { key: 'pelanggan', width: 24 }, // M: Keterangan Pelanggan
+  ]
+
+  // 1. JUDUL LAPORAN (Baris 1)
+  sheet.mergeCells('A1:M1')
+  const title1 = sheet.getCell('A1')
+  title1.value = `LAPORAN SALDO DAN KELUAR MASUK ${titleProduct.toUpperCase()}`
+  title1.font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF000000' } }
+  title1.alignment = { vertical: 'middle', horizontal: 'center' }
+  sheet.getRow(1).height = 28
+
+  // 2. SUBJUDUL PERIODE (Baris 2)
+  sheet.mergeCells('A2:M2')
+  const title2 = sheet.getCell('A2')
+  title2.value = reportPeriod.toUpperCase()
+  title2.font = { name: 'Calibri', size: 12, bold: true, color: { argb: 'FF000000' } }
+  title2.alignment = { vertical: 'middle', horizontal: 'center' }
+  sheet.getRow(2).height = 24
+
+  // Baris 3: Kosong
+  sheet.getRow(3).height = 10
+
+  // 3. HEADER TABEL DUA TINGKAT (Baris 4 & 5)
+  // Merge vertikal untuk NO, TGL, KETERANGAN, SALDO, Keterangan Pelanggan
+  sheet.mergeCells('A4:A5')
+  sheet.getCell('A4').value = 'NO'
+
+  sheet.mergeCells('B4:B5')
+  sheet.getCell('B4').value = 'TGL'
+
+  sheet.mergeCells('C4:C5')
+  sheet.getCell('C4').value = 'KETERANGAN'
+
+  // Mutasi Fisik:
+  sheet.getCell('D4').value = 'IN'
+  sheet.getCell('D5').value = 'Dus'
+
+  sheet.getCell('E4').value = 'Out'
+  sheet.getCell('E5').value = 'Dus'
+
+  sheet.getCell('F4').value = 'Out'
+  sheet.getCell('F5').value = 'Bns Dus'
+
+  sheet.getCell('G4').value = 'Saldo'
+  sheet.getCell('G5').value = 'Pcs'
+
+  // Transaksi Grup: H4:K4
+  sheet.mergeCells('H4:K4')
+  sheet.getCell('H4').value = 'Transaksi'
+
+  sheet.getCell('H5').value = 'OMZET'
+  sheet.getCell('I5').value = 'Pemdapatan\nMagati'
+  sheet.getCell('J5').value = 'Uang Modal'
+  sheet.getCell('K5').value = 'TF Saldo'
+
+  sheet.mergeCells('L4:L5')
+  sheet.getCell('L4').value = 'SALDO'
+
+  sheet.mergeCells('M4:M5')
+  sheet.getCell('M4').value = 'Keterangan Pelanggan'
+
+  // Format styling seluruh sel header di baris 4 dan 5
+  const HEADER_FILL = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFD9E1F2' }, // Biru muda lembut persis template gambar
+  }
+
+  for (let r = 4; r <= 5; r += 1) {
+    const row = sheet.getRow(r)
+    row.height = r === 5 ? 26 : 20
+    for (let c = 1; c <= 13; c += 1) {
+      const cell = row.getCell(c)
+      cell.fill = HEADER_FILL
+      cell.border = BLACK_THIN_BORDER
+      cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF000000' } }
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }
+    }
+  }
+
+  // 4. BARIS SALDO AWAL (Baris 6)
+  sheet.mergeCells('A6:C6')
+  const saldoAwalLabel = sheet.getCell('A6')
+  saldoAwalLabel.value = 'SALDO AWAL'
+  saldoAwalLabel.font = { name: 'Calibri', size: 11, bold: true }
+  saldoAwalLabel.alignment = { vertical: 'middle', horizontal: 'center' }
+
+  // Set nilai saldo awal di kolom G (Pcs) dan Kolom L (SALDO Kas)
+  sheet.getCell('G6').value = initialStockPcs
+  sheet.getCell('G6').font = { name: 'Calibri', size: 11, bold: true }
+  sheet.getCell('G6').alignment = { vertical: 'middle', horizontal: 'center' }
+  sheet.getCell('G6').numFmt = '#,##0'
+
+  sheet.getCell('L6').value = initialCash
+  sheet.getCell('L6').font = { name: 'Calibri', size: 11, bold: true }
+  sheet.getCell('L6').alignment = { vertical: 'middle', horizontal: 'right' }
+  sheet.getCell('L6').numFmt = '#,##0'
+
+  const row6 = sheet.getRow(6)
+  row6.height = 24
+  for (let c = 1; c <= 13; c += 1) {
+    const cell = row6.getCell(c)
+    cell.border = BLACK_THIN_BORDER
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEBF1F5' } }
+  }
+
+  // 5. ISI TRANSAKSI BERJALAN (Baris 7 dst)
+  let currentStock = initialStockPcs
+  let currentCash = initialCash
+
+  let sumInDus = 0
+  let sumOutDus = 0
+  let sumOutBns = 0
+  let sumOmzet = 0
+  let sumMagati = 0
+  let sumModal = 0
+  let sumTfSaldo = 0
+
+  records.forEach((rec, idx) => {
+    const rIdx = 7 + idx
+    const row = sheet.getRow(rIdx)
+    row.height = 22
+
+    const inD = Number(rec.inDus) || 0
+    const outD = Number(rec.outDus) || 0
+    const outB = Number(rec.outBnsDus) || 0
+    const omz = Number(rec.omzet) || 0
+    const mag = Number(rec.magatiFee) || 0
+    const mod = Number(rec.uangModal) || 0
+    const tf = Number(rec.tfSaldo) || 0
+    const outKas = Number(rec.cashOut) || 0
+
+    // Hitung running balance
+    currentStock = currentStock + inD - outD - outB
+    
+    // Perhitungan kas: sesuai template user, kas bertambah dengan fee magati dan tf saldo, atau omzet
+    // Jika ada omzet tapi magati = 0, kita tambahkan omzet. Namun jika magati terisi, bertambah sebesar magati + tf - outKas
+    if (mag > 0) {
+      currentCash += mag + tf - outKas
+    } else if (omz > 0 && rec.type !== 'rumah') {
+      currentCash += omz + tf - outKas
+    } else {
+      currentCash += tf - outKas
+    }
+
+    sumInDus += inD
+    sumOutDus += outD
+    sumOutBns += outB
+    sumOmzet += omz
+    sumMagati += mag
+    sumModal += mod
+    sumTfSaldo += tf
+
+    // Format tanggal
+    let dateStr = rec.date || ''
+    if (dateStr && dateStr.includes('-')) {
+      try {
+        dateStr = formatDate(`${dateStr}T00:00:00`, 'd-MMM-yy')
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    row.getCell(1).value = idx + 1
+    row.getCell(2).value = dateStr || '-'
+    row.getCell(3).value = rec.keterangan || (settings?.defaultSalesName || 'Pak bambang')
+    row.getCell(4).value = inD > 0 ? inD : ''
+    row.getCell(5).value = outD > 0 ? outD : ''
+    row.getCell(6).value = outB > 0 ? outB : ''
+    row.getCell(7).value = currentStock
+    row.getCell(8).value = omz > 0 ? omz : (omz === 0 && rec.outDus > 0 ? '-' : '')
+    row.getCell(9).value = mag > 0 ? mag : ''
+    row.getCell(10).value = mod > 0 ? mod : ''
+    row.getCell(11).value = tf > 0 ? tf : ''
+    row.getCell(12).value = currentCash
+    row.getCell(13).value = rec.customerNote || (rec.type === 'rumah' ? 'Rumah' : '-')
+
+    // Border & format angka
+    for (let c = 1; c <= 13; c += 1) {
+      const cell = row.getCell(c)
+      cell.border = BLACK_THIN_BORDER
+      cell.font = { name: 'Calibri', size: 10, color: { argb: 'FF000000' } }
+
+      if (c === 1 || c === 2 || c === 4 || c === 5 || c === 6 || c === 7) {
+        cell.alignment = { vertical: 'middle', horizontal: 'center' }
+        if (c >= 4 && c <= 7 && typeof cell.value === 'number') cell.numFmt = '#,##0'
+      } else if (c >= 8 && c <= 12) {
+        cell.alignment = { vertical: 'middle', horizontal: 'right' }
+        if (typeof cell.value === 'number') cell.numFmt = '#,##0'
+      } else {
+        cell.alignment = { vertical: 'middle', horizontal: 'left' }
+      }
+    }
+  })
+
+  // 6. BARIS FOOTER: JUMLAH / SALDO AKHIR
+  const footerRowIdx = 7 + records.length
+  const footerRow = sheet.getRow(footerRowIdx)
+  footerRow.height = 26
+
+  sheet.mergeCells(`A${footerRowIdx}:C${footerRowIdx}`)
+  const footerLabel = sheet.getCell(`A${footerRowIdx}`)
+  footerLabel.value = 'JUMLAH/SALDO AKHIR'
+  footerLabel.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } }
+  footerLabel.alignment = { vertical: 'middle', horizontal: 'center' }
+
+  footerRow.getCell(4).value = sumInDus > 0 ? sumInDus : ''
+  footerRow.getCell(5).value = sumOutDus
+  footerRow.getCell(6).value = sumOutBns
+  footerRow.getCell(7).value = currentStock // Sisa Saldo Pcs Akhir
+  footerRow.getCell(8).value = sumOmzet
+  footerRow.getCell(9).value = sumMagati
+  footerRow.getCell(10).value = sumModal > 0 ? sumModal : '-'
+  footerRow.getCell(11).value = sumTfSaldo > 0 ? sumTfSaldo : ''
+  footerRow.getCell(12).value = currentCash // Saldo Akhir Kas
+  footerRow.getCell(13).value = ''
+
+  for (let c = 1; c <= 13; c += 1) {
+    const cell = footerRow.getCell(c)
+    cell.border = BLACK_TOTAL_BORDER
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF000000' } }
+
+    if (c === 1 || c === 4 || c === 5 || c === 6 || c === 7) {
+      cell.alignment = { vertical: 'middle', horizontal: 'center' }
+      if (typeof cell.value === 'number') cell.numFmt = '#,##0'
+    } else if (c >= 8 && c <= 12) {
+      cell.alignment = { vertical: 'middle', horizontal: 'right' }
+      if (typeof cell.value === 'number') cell.numFmt = '#,##0'
+    } else {
+      cell.alignment = { vertical: 'middle', horizontal: 'left' }
+    }
+  }
+
+  // Download XLSX ke browser
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `Laporan-Keuangan-${titleProduct.replace(/[^a-zA-Z0-9]/g, '_')}-${reportPeriod.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
 /**
  * 1. EKSPOR LAPORAN PENJUALAN & TRANSAKSI KASIR (.XLSX)
  */

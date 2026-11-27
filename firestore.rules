@@ -51,6 +51,12 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    // 7. Mutasi Buku Kas & Keuangan (financeRecords)
+    // CRUD lengkap untuk kas in/out, fee magati, mutasi stok, tf saldo
+    match /financeRecords/{recordId} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+
     // Aturan fallback untuk dokumen lainnya
     match /{document=**} {
       allow read, write: if isAuthenticated();

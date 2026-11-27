@@ -68,6 +68,63 @@ export function subscribeSettings(callback) {
   )
 }
 
+export function subscribeFinanceRecords(callback) {
+  const q = query(collection(db, 'financeRecords'), orderBy('createdAt', 'desc'), limit(SALES_LIMIT))
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const records = mapDocs(snapshot).sort((a, b) => {
+        const timeA = toDate(a.date || a.createdAt)?.getTime() || 0
+        const timeB = toDate(b.date || b.createdAt)?.getTime() || 0
+        return timeA - timeB
+      })
+      callback(records)
+    },
+    (error) => {
+      console.error('[e-cash] subscribeFinanceRecords', error)
+      callback([])
+    },
+  )
+}
+
+export async function createFinanceRecord(input) {
+  const ref = await addDoc(collection(db, 'financeRecords'), {
+    ...input,
+    inDus: Number(input.inDus) || 0,
+    outDus: Number(input.outDus) || 0,
+    outBnsDus: Number(input.outBnsDus) || 0,
+    omzet: Number(input.omzet) || 0,
+    magatiFee: Number(input.magatiFee) || 0,
+    salesFee: Number(input.salesFee) || 0,
+    uangModal: Number(input.uangModal) || 0,
+    tfSaldo: Number(input.tfSaldo) || 0,
+    cashOut: Number(input.cashOut) || 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function updateFinanceRecord(id, input) {
+  await updateDoc(doc(db, 'financeRecords', id), {
+    ...input,
+    inDus: Number(input.inDus) || 0,
+    outDus: Number(input.outDus) || 0,
+    outBnsDus: Number(input.outBnsDus) || 0,
+    omzet: Number(input.omzet) || 0,
+    magatiFee: Number(input.magatiFee) || 0,
+    salesFee: Number(input.salesFee) || 0,
+    uangModal: Number(input.uangModal) || 0,
+    tfSaldo: Number(input.tfSaldo) || 0,
+    cashOut: Number(input.cashOut) || 0,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteFinanceRecord(id) {
+  await deleteDoc(doc(db, 'financeRecords', id))
+}
+
 export async function createProduct(input) {
   const ref = await addDoc(collection(db, 'products'), {
     ...input,

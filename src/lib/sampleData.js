@@ -115,13 +115,39 @@ export function generateDemoSales(products, settings = DEFAULT_SETTINGS) {
   return { sales, counter }
 }
 
+export function generateDemoFinanceRecords() {
+  const raw = [
+    { date: '2025-05-02', keterangan: 'Pak bambang', inDus: 0, outDus: 10, outBnsDus: 0, omzet: 450000, magatiFee: 20000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Ibu Yayuk' },
+    { date: '2025-05-03', keterangan: 'Pak bambang', inDus: 0, outDus: 4, outBnsDus: 0, omzet: 200000, magatiFee: 20000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'PAK Toruan' },
+    { date: '2025-05-05', keterangan: 'Pak bambang', inDus: 0, outDus: 2, outBnsDus: 0, omzet: 100000, magatiFee: 10000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Pak Daniel' },
+    { date: '2025-05-05', keterangan: 'Pak bambang', inDus: 0, outDus: 6, outBnsDus: 0, omzet: 300000, magatiFee: 30000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Ibu Yayuk' },
+    { date: '2025-05-10', keterangan: 'Pak bambang', inDus: 0, outDus: 10, outBnsDus: 0, omzet: 450000, magatiFee: 20000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Ibu Hj Dewi' },
+    { date: '2025-05-11', keterangan: 'Pak bambang', inDus: 0, outDus: 2, outBnsDus: 0, omzet: 90000, magatiFee: 4000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Rumah' },
+    { date: '2025-05-11', keterangan: 'Pak bambang', inDus: 0, outDus: 2, outBnsDus: 0, omzet: 90000, magatiFee: 4000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Orang Luar' },
+    { date: '2025-05-13', keterangan: 'Pak bambang', inDus: 0, outDus: 5, outBnsDus: 0, omzet: 225000, magatiFee: 10000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Ibu Yayuk' },
+    { date: '2025-05-15', keterangan: 'Pak bambang', inDus: 0, outDus: 5, outBnsDus: 0, omzet: 225000, magatiFee: 10000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Pak Lukman Ali' },
+    { date: '2025-05-17', keterangan: 'Pak bambang', inDus: 0, outDus: 5, outBnsDus: 0, omzet: 225000, magatiFee: 10000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Pak Anton' },
+    { date: '2025-05-20', keterangan: 'Pak bambang', inDus: 0, outDus: 4, outBnsDus: 0, omzet: 180000, magatiFee: 8000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Rumah' },
+    { date: '2025-05-29', keterangan: 'Pak bambang', inDus: 0, outDus: 60, outBnsDus: 0, omzet: 2700000, magatiFee: 120000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Pak Fajar' },
+    { date: '2025-05-30', keterangan: 'Pak bambang', inDus: 0, outDus: 6, outBnsDus: 0, omzet: 270000, magatiFee: 12000, salesFee: 0, uangModal: 0, tfSaldo: 0, cashOut: 0, customerNote: 'Ibu Yayuk' },
+  ]
+  return raw.map((item, idx) => ({
+    id: `fin-${idx + 1}`,
+    ...item,
+    createdAt: new Date(`${item.date}T10:00:00`).toISOString(),
+    updatedAt: new Date(`${item.date}T10:00:00`).toISOString(),
+  }))
+}
+
 export function createDemoStore() {
   const products = buildSampleProducts()
   const { sales, counter } = generateDemoSales(products, DEFAULT_SETTINGS)
+  const financeRecords = generateDemoFinanceRecords()
   return {
     version: 1,
     products,
     sales,
+    financeRecords,
     settings: { ...DEFAULT_SETTINGS },
     counter,
     seededAt: new Date().toISOString(),

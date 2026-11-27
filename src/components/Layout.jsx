@@ -4,6 +4,7 @@ import { isImageLogo } from '../lib/image'
 import {
   BarChart3,
   Bell,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -34,6 +35,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/produk', label: 'Produk & Stok', icon: Package },
       { to: '/transaksi', label: 'Transaksi', icon: ReceiptText },
+      { to: '/keuangan', label: 'Keuangan & Kas', icon: Landmark },
       { to: '/laporan', label: 'Laporan', icon: BarChart3 },
     ],
   },
@@ -48,6 +50,7 @@ const PAGE_TITLES = {
   '/kasir': 'Kasir',
   '/produk': 'Produk & Stok',
   '/transaksi': 'Transaksi',
+  '/keuangan': 'Buku Kas & Keuangan',
   '/laporan': 'Laporan',
   '/pengaturan': 'Pengaturan',
 }

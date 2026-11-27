@@ -23,7 +23,7 @@ import {
 } from '../lib/analytics'
 import { PAYMENT_METHODS, paymentLabel } from '../lib/constants'
 import { dateKey, formatCompact, formatDate, formatNumber, formatRupiah } from '../lib/format'
-import { exportFinancialReportExcel, exportSalesReportExcel } from '../lib/excel'
+import { exportFinancialReportExcel, exportFinanceTemplateExcel, exportSalesReportExcel } from '../lib/excel'
 import {
   Badge,
   Button,
@@ -99,7 +99,7 @@ function rangeForPreset(preset) {
 }
 
 export default function Reports() {
-  const { sales, products, settings, loadingSales, loadingProducts } = useStore()
+  const { sales, products, financeRecords, settings, loadingSales, loadingProducts } = useStore()
   const [preset, setPreset] = useState('30d')
   const [range, setRange] = useState(() => rangeForPreset('30d'))
 
@@ -221,6 +221,20 @@ export default function Reports() {
     }
   }
 
+  async function handleExportTemplate() {
+    try {
+      await exportFinanceTemplateExcel({
+        records: financeRecords,
+        settings,
+        period: settings?.reportPeriod || `BULAN ${formatDate(`${range.from}T00:00:00`, 'MMMM yyyy').toUpperCase()}`,
+        productTitle: settings?.reportProductTitle || 'SUSU KAMBING GIARVA',
+      })
+      toast.success('Laporan Saldo & Keluar Masuk (.xlsx) berhasil diunduh')
+    } catch (err) {
+      toast.error('Gagal membuat laporan Excel')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <PageHeading
@@ -235,10 +249,10 @@ export default function Reports() {
               variant="secondary"
               size="md"
               icon={Download}
-              className="border-brand-300 bg-brand-50/70 text-brand-800 hover:bg-brand-100"
-              onClick={handleExportFinancial}
+              className="border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+              onClick={handleExportTemplate}
             >
-              Laporan Keuangan (.xlsx)
+              Laporan Saldo & Keluar Masuk (.xlsx)
             </Button>
           </div>
         }

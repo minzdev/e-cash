@@ -68,6 +68,12 @@ export default function SettingsPage() {
         taxRate: Number(form.taxRate) || 0,
         lowStockDefault: Number(form.lowStockDefault) || 0,
         initialCash: Number(form.initialCash) || 0,
+        initialStockPcs: Number(form.initialStockPcs) || 0,
+        magatiFeePerPcs: Number(form.magatiFeePerPcs) || 0,
+        salesFeePerPcs: Number(form.salesFeePerPcs) || 0,
+        defaultSalesName: String(form.defaultSalesName || 'Pak bambang').trim(),
+        reportProductTitle: String(form.reportProductTitle || 'SUSU KAMBING GIARVA').trim(),
+        reportPeriod: String(form.reportPeriod || 'BULAN JULI 2025').trim(),
       })
       setDirty(false)
       toast.success('Pengaturan berhasil disimpan')
@@ -286,59 +292,70 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader
-              title="Kas, Pajak & Stok"
-              description="Pengaturan saldo awal kas kasir, pajak, dan inventori."
+              title="Parameter Laporan Keuangan & Fee"
+              description="Saldo awal kas, saldo barang (pcs), fee Magati, dan nama pembawa."
               icon={Landmark}
             />
             <div className="space-y-4 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input
-                  label="Saldo awal uang kas di laci (Rp)"
+                  label="Saldo Awal Kas / Uang (Rp)"
                   type="number"
                   min="0"
                   step="1000"
-                  value={form.initialCash ?? 0}
+                  value={form.initialCash ?? 626000}
                   onChange={(event) => update('initialCash', event.target.value)}
-                  hint="Saldo modal kas awal untuk laporan keuangan."
+                  hint="Contoh: 626.000"
                 />
                 <Input
-                  label="Stok minimum default"
+                  label="Saldo Awal Barang (Pcs)"
                   type="number"
                   min="0"
-                  value={form.lowStockDefault ?? 0}
-                  onChange={(event) => update('lowStockDefault', event.target.value)}
-                  hint="Ambang peringatan stok untuk produk baru."
+                  value={form.initialStockPcs ?? 133}
+                  onChange={(event) => update('initialStockPcs', event.target.value)}
+                  hint="Stok awal barang dalam bentuk pcs (contoh: 133)"
                 />
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <Toggle
-                  checked={Boolean(form.taxEnabled)}
-                  onChange={(value) => update('taxEnabled', value)}
-                  label="Aktifkan pajak (PPN)"
-                  description="Pajak dihitung dari subtotal setelah diskon."
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  label="Fee Magati per Pcs (Rp)"
+                  type="number"
+                  min="0"
+                  value={form.magatiFeePerPcs ?? 2000}
+                  onChange={(event) => update('magatiFeePerPcs', event.target.value)}
+                  hint="Default Rp 2.000 per transaksi/pcs (bisa dicustom)"
+                />
+                <Input
+                  label="Fee Sales / Pembawa per Pcs (Rp)"
+                  type="number"
+                  min="0"
+                  value={form.salesFeePerPcs ?? 0}
+                  onChange={(event) => update('salesFeePerPcs', event.target.value)}
+                  hint="Fee untuk orang yang membawa barang"
                 />
               </div>
 
-              {form.taxEnabled ? (
-                <div>
-                  <Input
-                    label="Tarif pajak (%)"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    value={form.taxRate ?? 0}
-                    onChange={(event) => update('taxRate', event.target.value)}
-                    hint="Contoh: 11 untuk PPN 11%."
-                  />
-                </div>
-              ) : null}
-
-              <p className="rounded-xl bg-brand-50 px-3 py-2 text-[11px] leading-relaxed text-brand-700">
-                Mata uang transaksi: <span className="font-bold">Rupiah (IDR)</span>. Format harga
-                mengikuti lokal Indonesia.
-              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Input
+                  label="Nama Pembawa Default (Sales)"
+                  value={form.defaultSalesName ?? 'Pak bambang'}
+                  onChange={(event) => update('defaultSalesName', event.target.value)}
+                  placeholder="Contoh: Pak bambang"
+                />
+                <Input
+                  label="Judul Produk di Laporan"
+                  value={form.reportProductTitle ?? 'SUSU KAMBING GIARVA'}
+                  onChange={(event) => update('reportProductTitle', event.target.value)}
+                  placeholder="SUSU KAMBING GIARVA"
+                />
+                <Input
+                  label="Periode Laporan"
+                  value={form.reportPeriod ?? 'BULAN JULI 2025'}
+                  onChange={(event) => update('reportPeriod', event.target.value)}
+                  placeholder="BULAN JULI 2025"
+                />
+              </div>
             </div>
           </Card>
 

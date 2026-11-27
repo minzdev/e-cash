@@ -15,7 +15,14 @@ export const DEFAULT_SETTINGS = {
   taxEnabled: true,
   taxRate: 11,
   lowStockDefault: 5,
-  initialCash: 0,
+  initialCash: 626000,
+  initialStockPcs: 133,
+  magatiFeePerPcs: 2000,
+  salesFeePerPcs: 0,
+  defaultSalesName: 'Pak bambang',
+  reportProductTitle: 'SUSU KAMBING GIARVA',
+  reportPeriod: 'BULAN JULI 2025',
+  cashCalculationMode: 'magati', // 'magati' | 'omzet'
   currency: 'IDR',
 }
 

@@ -8,6 +8,7 @@ import POS from './pages/POS'
 import Products from './pages/Products'
 import PublicReceipt from './pages/PublicReceipt'
 import Reports from './pages/Reports'
+import Finance from './pages/Finance'
 import SettingsPage from './pages/Settings'
 import Transactions from './pages/Transactions'
 
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="kasir" element={<POS />} />
           <Route path="produk" element={<Products />} />
           <Route path="transaksi" element={<Transactions />} />
+          <Route path="keuangan" element={<Finance />} />
           <Route path="laporan" element={<Reports />} />
           <Route path="pengaturan" element={<SettingsPage />} />
         </Route>
