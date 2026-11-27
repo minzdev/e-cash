@@ -128,7 +128,7 @@ function CartPanel({
           </div>
           <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500">
             <span>Harga Jual: <strong className={isGrosir ? 'text-amber-700' : 'text-brand-700'}>{isGrosir ? 'Rp 45.000' : 'Rp 50.000'}</strong>/pcs</span>
-            <span>Fee Magati: <strong className="text-amber-700">{isGrosir ? 'Rp 2.000' : 'Rp 5.000'}</strong> · Fee Sales: <strong className="text-emerald-700">{isGrosir ? 'Rp 3.000' : 'Rp 5.000'}</strong></span>
+            <span>Fee Magati: <strong className="text-amber-700">{isGrosir ? 'Rp 2.000' : 'Rp 5.000'}</strong> · Fee Sales: <strong className="text-emerald-700">{formatRupiah(isGrosir ? (selectedSalesPerson?.feeWholesale !== undefined ? Number(selectedSalesPerson.feeWholesale) : (Number(settings?.salesFeeWholesale) || 3000)) : (selectedSalesPerson?.feeRetail !== undefined ? Number(selectedSalesPerson.feeRetail) : (Number(settings?.salesFeeRetail) || 5000)))}</strong></span>
           </div>
         </div>
       ) : null}
@@ -218,11 +218,16 @@ function CartPanel({
               className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-2.5 text-[11px] text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10"
             >
               <option value="">-- Pilih Sales / Pembawa --</option>
-              {salesPersons.filter(sp => sp.active !== false).map(sp => (
-                <option key={sp.id} value={sp.id}>
-                  {sp.name}{sp.feePerPcs ? ` (Fee: ${formatRupiah(sp.feePerPcs)}/pcs)` : ''}
-                </option>
-              ))}
+              {salesPersons.filter(sp => sp.active !== false).map(sp => {
+                const currentFee = isGrosir
+                  ? (sp.feeWholesale !== undefined ? Number(sp.feeWholesale) : (Number(sp.feePerPcs) || 3000))
+                  : (sp.feeRetail !== undefined ? Number(sp.feeRetail) : (Number(sp.feePerPcs) || 5000))
+                return (
+                  <option key={sp.id} value={sp.id}>
+                    {sp.name} · Fee {isGrosir ? 'Grosir' : 'Eceran'}: {formatRupiah(currentFee)}/pcs
+                  </option>
+                )
+              })}
             </select>
           </div>
         ) : null}

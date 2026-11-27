@@ -22,8 +22,9 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '../context/StoreContext'
 import { api } from '../lib/api'
-import { formatNumber, formatRupiah, dateKey } from '../lib/format'
+import { formatNumber, formatRupiah, dateKey, toDate } from '../lib/format'
 import { exportFinanceTemplateExcel } from '../lib/excel'
+import MonthYearFilter from '../components/MonthYearFilter'
 import {
   Badge,
   Button,
@@ -62,6 +63,22 @@ export default function Finance() {
   // State Filter & Pencarian
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+
+  // Filter rentang Bulan dan Tahun
+  const [selectedMonth, setSelectedMonth] = useState('all')
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
+
+  // Daftar tahun unik dari financeRecords
+  const availableYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        (financeRecords || []).map((r) => {
+          const d = toDate(r.date || r.createdAt)
+          return d ? d.getFullYear() : new Date().getFullYear()
+        })
+      )
+    )
+  }, [financeRecords])
 
   // Form Record Mutasi Kas/Stok
   const [recordForm, setRecordForm] = useState({
@@ -342,10 +359,15 @@ export default function Finance() {
     }
   }, [sortedRecords, settings])
 
-  // Filter baris untuk tampilan tabel UI
+  // Filter baris untuk tampilan tabel UI (berdasarkan pencarian, tipe, dan periode bulan/tahun)
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return tableRows.filter((row) => {
+      const d = toDate(row.date || row.createdAt)
+      if (d) {
+        if (selectedYear !== 'all' && d.getFullYear() !== Number(selectedYear)) return false
+        if (selectedMonth !== 'all' && d.getMonth() !== Number(selectedMonth)) return false
+      }
       if (typeFilter === 'cash' && row.paymentMethod !== 'cash') return false
       if (typeFilter === 'transfer' && row.paymentMethod !== 'transfer') return false
       if (typeFilter === 'sale' && row.type !== 'sale') return false
@@ -361,7 +383,7 @@ export default function Finance() {
         String(row.paymentMethod || '').toLowerCase().includes(q)
       )
     })
-  }, [tableRows, search, typeFilter])
+  }, [tableRows, search, typeFilter, selectedMonth, selectedYear])
 
   return (
     <div className="space-y-4">
@@ -452,7 +474,7 @@ export default function Finance() {
 
       {/* Filter & Pencarian Baris */}
       <Card className="p-3">
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative flex-1">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -463,11 +485,18 @@ export default function Finance() {
               className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-500/10"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthYearFilter
+              selectedMonth={selectedMonth}
+              onMonthChange={setSelectedMonth}
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+              availableYears={availableYears}
+            />
             <Select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-10 w-52"
+              className="h-10 w-48 sm:w-52"
               aria-label="Filter Tipe Transaksi"
             >
               <option value="all">Semua Transaksi</option>

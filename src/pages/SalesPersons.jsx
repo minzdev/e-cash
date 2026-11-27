@@ -16,7 +16,8 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '../context/StoreContext'
 import { api } from '../lib/api'
-import { formatDate, formatNumber, formatRupiah } from '../lib/format'
+import { formatDate, formatNumber, formatRupiah, toDate } from '../lib/format'
+import MonthYearFilter from '../components/MonthYearFilter'
 import {
   Badge,
   Button,
@@ -37,6 +38,22 @@ export default function SalesPersons() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Filter rentang Bulan dan Tahun
+  const [selectedMonth, setSelectedMonth] = useState('all')
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
+
+  // Daftar tahun unik dari financeRecords
+  const availableYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        (financeRecords || []).map((r) => {
+          const d = toDate(r.date || r.createdAt)
+          return d ? d.getFullYear() : new Date().getFullYear()
+        })
+      )
+    )
+  }, [financeRecords])
 
   const [form, setForm] = useState({
     name: '',
@@ -137,16 +154,23 @@ export default function SalesPersons() {
     }
   }
 
-  // Hitung akumulasi real-time komisi fee, total transaksi, dan total pcs per sales
+  // Hitung akumulasi real-time komisi fee, total transaksi, dan total pcs per sales berdasarkan filter periode
   const salesStatsMap = useMemo(() => {
     const map = {}
     ;(salesPersons || []).forEach((p) => {
       map[p.id] = { totalTx: 0, totalPcs: 0, totalFee: 0, totalOmzet: 0 }
     })
 
-    const records = financeRecords || []
+    const records = (financeRecords || []).filter((rec) => {
+      if (rec.type === 'void') return false
+      const d = toDate(rec.date || rec.createdAt)
+      if (!d) return true
+      if (selectedYear !== 'all' && d.getFullYear() !== Number(selectedYear)) return false
+      if (selectedMonth !== 'all' && d.getMonth() !== Number(selectedMonth)) return false
+      return true
+    })
+
     records.forEach((rec) => {
-      if (rec.type === 'void') return
       // Cocokkan berdasarkan salesPersonId atau nama keterangan
       const matched = (salesPersons || []).find((p) =>
         (rec.salesPersonId && p.id === rec.salesPersonId) ||
@@ -168,7 +192,7 @@ export default function SalesPersons() {
     })
 
     return map
-  }, [salesPersons, financeRecords])
+  }, [salesPersons, financeRecords, selectedMonth, selectedYear])
 
   const totalAccumulatedFee = useMemo(() => {
     return Object.values(salesStatsMap).reduce((sum, s) => sum + (s.totalFee || 0), 0)
@@ -249,17 +273,26 @@ export default function SalesPersons() {
 
       {/* Filter / Search Bar */}
       <Card className="p-3">
-        <div className="relative">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama sales atau pembawa..."
-            className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama sales atau pembawa..."
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+            />
+          </div>
+          <MonthYearFilter
+            selectedMonth={selectedMonth}
+            onMonthChange={setSelectedMonth}
+            selectedYear={selectedYear}
+            onYearChange={setSelectedYear}
+            availableYears={availableYears}
           />
         </div>
       </Card>

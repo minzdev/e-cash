@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BarChart3,
   Boxes,
+  Calendar,
   PackagePlus,
   Plus,
   ReceiptText,
@@ -39,8 +40,9 @@ import {
   topProducts,
 } from '../lib/analytics'
 import { paymentLabel } from '../lib/constants'
-import { formatCompact, formatDate, formatNumber, formatRupiah, greeting, formatTime } from '../lib/format'
+import { formatCompact, formatDate, formatNumber, formatRupiah, greeting, formatTime, toDate } from '../lib/format'
 import ReceiptDialog from '../components/ReceiptDialog'
+import MonthYearFilter from '../components/MonthYearFilter'
 import {
   Badge,
   Button,
@@ -99,6 +101,36 @@ export default function Dashboard() {
   const [selectedSale, setSelectedSale] = useState(null)
   const [seeding, setSeeding] = useState(false)
 
+  // Filter rentang Bulan dan Tahun
+  const [selectedMonth, setSelectedMonth] = useState('all')
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()))
+
+  // Daftar tahun yang ada pada data sales
+  const availableYears = useMemo(() => {
+    return Array.from(
+      new Set(
+        sales.map((s) => {
+          const d = toDate(s.createdAt)
+          return d ? d.getFullYear() : new Date().getFullYear()
+        })
+      )
+    )
+  }, [sales])
+
+  // Filter data penjualan berdasarkan bulan dan tahun terpilih
+  const filteredSalesByPeriod = useMemo(() => {
+    if (selectedMonth === 'all' && selectedYear === 'all') return sales
+    return sales.filter((s) => {
+      const d = toDate(s.createdAt)
+      if (!d) return false
+      if (selectedYear !== 'all' && d.getFullYear() !== Number(selectedYear)) return false
+      if (selectedMonth !== 'all' && d.getMonth() !== Number(selectedMonth)) return false
+      return true
+    })
+  }, [sales, selectedMonth, selectedYear])
+
+  const isPeriodFiltered = selectedMonth !== 'all' || selectedYear !== 'all'
+
   const todaySales = useMemo(
     () => filterSales(sales, { from: startOfDay(now), to: endOfDay(now) }),
     [sales, now],
@@ -108,16 +140,35 @@ export default function Dashboard() {
     return filterSales(sales, { from: startOfDay(yesterday), to: endOfDay(yesterday) })
   }, [sales, now])
 
-  const kpi = useMemo(() => buildKpi(todaySales, yesterdaySales), [todaySales, yesterdaySales])
-  const series = useMemo(() => dailySeries(sales, subDays(now, range - 1), now), [sales, range, now])
-  const last30Sales = useMemo(
-    () => filterSales(sales, { from: subDays(now, 29), to: endOfDay(now) }),
-    [sales, now],
-  )
-  const payments = useMemo(() => paymentBreakdown(last30Sales), [last30Sales])
-  const bestSellers = useMemo(() => topProducts(last30Sales, 5), [last30Sales])
+  // KPI bulanan / periode jika difilter, atau harian jika default
+  const periodKpi = useMemo(() => {
+    if (!isPeriodFiltered) {
+      return buildKpi(todaySales, yesterdaySales)
+    }
+    const totalRev = filteredSalesByPeriod.reduce((s, x) => s + (Number(x.total) || 0), 0)
+    const totalProfit = filteredSalesByPeriod.reduce((s, x) => {
+      const modal = (x.lines || []).reduce((m, l) => m + ((Number(l.costPrice) || 0) * (Number(l.qty) || 1)), 0)
+      return s + (Number(x.total) || 0) - modal
+    }, 0)
+    const count = filteredSalesByPeriod.length
+    const items = filteredSalesByPeriod.reduce((s, x) => s + ((x.lines || []).reduce((q, l) => q + (Number(l.qty) || 1), 0)), 0)
+    const avg = count > 0 ? Math.round(totalRev / count) : 0
+    return {
+      current: { revenue: totalRev, profit: totalProfit, count, items, average: avg, voidCount: 0 },
+      previous: { revenue: 0, profit: 0, count: 0 },
+      trend: { revenue: 0, profit: 0, count: 0 },
+    }
+  }, [isPeriodFiltered, todaySales, yesterdaySales, filteredSalesByPeriod])
+
+  const kpi = periodKpi
+  const seriesSourceSales = isPeriodFiltered ? filteredSalesByPeriod : sales
+  const series = useMemo(() => dailySeries(seriesSourceSales, subDays(now, range - 1), now), [seriesSourceSales, range, now])
+  
+  const targetSalesForStats = isPeriodFiltered ? filteredSalesByPeriod : filterSales(sales, { from: subDays(now, 29), to: endOfDay(now) })
+  const payments = useMemo(() => paymentBreakdown(targetSalesForStats), [targetSalesForStats])
+  const bestSellers = useMemo(() => topProducts(targetSalesForStats, 5), [targetSalesForStats])
   const lowStock = useMemo(() => lowStockProducts(products), [products])
-  const recentSales = sales.slice(0, 6)
+  const recentSales = (isPeriodFiltered ? filteredSalesByPeriod : sales).slice(0, 6)
   const paymentTotal = payments.reduce((sum, item) => sum + item.value, 0)
   const maxQty = bestSellers[0]?.qty || 1
   const firstName = user?.name?.split(' ')[0] || 'Kasir'
@@ -141,16 +192,27 @@ export default function Dashboard() {
     <div className="space-y-4 sm:space-y-5">
       <PageHeading
         title={`${greeting()}, ${firstName} 👋`}
-        description={`Ringkasan bisnis Anda · ${formatDate(now, 'EEEE, dd MMMM yyyy')}`}
+        description={
+          isPeriodFiltered
+            ? `Filter Aktif: ${selectedMonth !== 'all' ? ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'][Number(selectedMonth)] : 'Semua Bulan'} ${selectedYear !== 'all' ? selectedYear : 'Semua Tahun'} (${filteredSalesByPeriod.length} transaksi)`
+            : `Ringkasan bisnis Anda · ${formatDate(now, 'EEEE, dd MMMM yyyy')}`
+        }
         action={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
+            <MonthYearFilter
+              selectedMonth={selectedMonth}
+              onMonthChange={setSelectedMonth}
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+              availableYears={availableYears}
+            />
             <Button as={Link} to="/laporan" variant="secondary" size="md" icon={BarChart3} className="hidden sm:inline-flex">
               Laporan
             </Button>
             <Button as={Link} to="/kasir" size="md" icon={Plus}>
               Transaksi Baru
             </Button>
-          </>
+          </div>
         }
       />
 
@@ -180,20 +242,20 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard
-          label="Omzet hari ini"
+          label={isPeriodFiltered ? 'Total Omzet Periode' : 'Omzet hari ini'}
           value={formatRupiah(kpi.current.revenue)}
           icon={Wallet}
           loading={loadingSales}
-          trend={loadingSales ? undefined : kpi.trend.revenue}
-          hint={`Kemarin ${formatRupiah(kpi.previous.revenue)}`}
+          trend={isPeriodFiltered || loadingSales ? undefined : kpi.trend.revenue}
+          hint={isPeriodFiltered ? `${filteredSalesByPeriod.length} transaksi` : `Kemarin ${formatRupiah(kpi.previous.revenue)}`}
         />
         <StatCard
-          label="Laba kotor"
+          label={isPeriodFiltered ? 'Total Laba Periode' : 'Laba kotor'}
           value={formatRupiah(kpi.current.profit)}
           icon={TrendingUp}
           tone="violet"
           loading={loadingSales}
-          trend={loadingSales ? undefined : kpi.trend.profit}
+          trend={isPeriodFiltered || loadingSales ? undefined : kpi.trend.profit}
           hint="Setelah harga modal"
         />
         <StatCard
@@ -202,7 +264,7 @@ export default function Dashboard() {
           icon={ReceiptText}
           tone="sky"
           loading={loadingSales}
-          trend={loadingSales ? undefined : kpi.trend.count}
+          trend={isPeriodFiltered || loadingSales ? undefined : kpi.trend.count}
           hint={`${formatNumber(kpi.current.items)} item terjual`}
         />
         <StatCard
