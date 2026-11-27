@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS = {
   taxEnabled: true,
   taxRate: 11,
   lowStockDefault: 5,
+  initialCash: 0,
   currency: 'IDR',
 }
 
@@ -23,6 +24,7 @@ export const PAYMENT_METHODS = [
   { id: 'qris', label: 'QRIS', accent: 'violet' },
   { id: 'transfer', label: 'Transfer', accent: 'sky' },
   { id: 'card', label: 'Kartu', accent: 'amber' },
+  { id: 'rumah', label: 'Ambilan Rumah', accent: 'rose' },
 ]
 
 export function paymentLabel(id) {

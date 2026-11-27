@@ -539,7 +539,7 @@ export default function POS() {
         open={payOpen}
         onClose={() => setPayOpen(false)}
         total={total}
-        lines={cartLines.map((line) => ({ productId: line.productId, qty: line.qty }))}
+        lines={cartLines}
         discount={discountValue}
         taxRate={taxRate}
         shipping={shippingValue}

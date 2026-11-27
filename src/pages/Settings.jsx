@@ -67,6 +67,7 @@ export default function SettingsPage() {
         storeName: form.storeName.trim(),
         taxRate: Number(form.taxRate) || 0,
         lowStockDefault: Number(form.lowStockDefault) || 0,
+        initialCash: Number(form.initialCash) || 0,
       })
       setDirty(false)
       toast.success('Pengaturan berhasil disimpan')
@@ -285,30 +286,20 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader
-              title="Pajak & stok"
-              description="Pengaturan default untuk transaksi baru."
+              title="Kas, Pajak & Stok"
+              description="Pengaturan saldo awal kas kasir, pajak, dan inventori."
               icon={Landmark}
             />
             <div className="space-y-4 p-5">
-              <div className="rounded-xl border border-slate-200 p-3.5">
-                <Toggle
-                  checked={Boolean(form.taxEnabled)}
-                  onChange={(value) => update('taxEnabled', value)}
-                  label="Aktifkan pajak (PPN)"
-                  description="Pajak dihitung dari subtotal setelah diskon."
-                />
-              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input
-                  label="Tarif pajak (%)"
+                  label="Saldo awal uang kas di laci (Rp)"
                   type="number"
                   min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.taxRate ?? 0}
-                  onChange={(event) => update('taxRate', event.target.value)}
-                  disabled={!form.taxEnabled}
-                  hint="Contoh: 11 untuk PPN 11%."
+                  step="1000"
+                  value={form.initialCash ?? 0}
+                  onChange={(event) => update('initialCash', event.target.value)}
+                  hint="Saldo modal kas awal untuk laporan keuangan."
                 />
                 <Input
                   label="Stok minimum default"
@@ -319,6 +310,31 @@ export default function SettingsPage() {
                   hint="Ambang peringatan stok untuk produk baru."
                 />
               </div>
+
+              <div className="rounded-xl border border-slate-200 p-3.5">
+                <Toggle
+                  checked={Boolean(form.taxEnabled)}
+                  onChange={(value) => update('taxEnabled', value)}
+                  label="Aktifkan pajak (PPN)"
+                  description="Pajak dihitung dari subtotal setelah diskon."
+                />
+              </div>
+
+              {form.taxEnabled ? (
+                <div>
+                  <Input
+                    label="Tarif pajak (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={form.taxRate ?? 0}
+                    onChange={(event) => update('taxRate', event.target.value)}
+                    hint="Contoh: 11 untuk PPN 11%."
+                  />
+                </div>
+              ) : null}
+
               <p className="rounded-xl bg-brand-50 px-3 py-2 text-[11px] leading-relaxed text-brand-700">
                 Mata uang transaksi: <span className="font-bold">Rupiah (IDR)</span>. Format harga
                 mengikuti lokal Indonesia.

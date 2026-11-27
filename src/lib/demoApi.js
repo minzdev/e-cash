@@ -158,12 +158,32 @@ export async function createSale(input) {
   const taxRate = Math.min(100, Math.max(0, Number(input.taxRate) || 0))
   const tax = Math.round(((subtotal - discount) * taxRate) / 100)
   const shipping = Math.max(0, Number(input.shipping) || 0)
-  const total = subtotal - discount + tax + shipping
-  const method = ['cash', 'qris', 'transfer', 'card'].includes(input.paymentMethod)
+  const method = ['cash', 'qris', 'transfer', 'card', 'rumah'].includes(input.paymentMethod)
     ? input.paymentMethod
     : 'cash'
-  const paid = method === 'cash' ? Number(input.paid) || 0 : total
-  if (paid < total) throw new Error('Nominal pembayaran kurang dari total.')
+  const totalCost = saleItems.reduce((sum, item) => sum + (Number(item.cost) || 0) * item.qty, 0)
+  const isRumah = method === 'rumah'
+  const rumahPricing = input.rumahPricing || 'free'
+
+  const total = isRumah
+    ? rumahPricing === 'free'
+      ? 0
+      : rumahPricing === 'cost'
+        ? totalCost
+        : Math.max(0, subtotal - discount + tax + shipping)
+    : Math.max(0, subtotal - discount + tax + shipping)
+
+  const paid = isRumah
+    ? rumahPricing === 'free'
+      ? 0
+      : Number(input.paid) >= 0
+        ? Number(input.paid)
+        : total
+    : method === 'cash'
+      ? Number(input.paid) || 0
+      : total
+
+  if (!isRumah && paid < total) throw new Error('Nominal pembayaran kurang dari total.')
   const cashier = input.cashier || {}
   const now = new Date()
 
@@ -181,8 +201,9 @@ export async function createSale(input) {
     paid,
     change: Math.max(0, paid - total),
     paymentMethod: method,
-    customerName: String(input.customerName || '').trim(),
-    note: String(input.note || '').trim(),
+    rumahPricing: isRumah ? rumahPricing : null,
+    customerName: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+    note: String(input.note || (isRumah ? 'Ambilan Rumah / Owner' : '')).trim(),
     cashierId: cashier.uid || '',
     cashierName: cashier.name || 'Kasir',
     status: 'paid',

@@ -18,7 +18,7 @@ import { filterSales, summarize } from '../lib/analytics'
 import { PAYMENT_METHODS, paymentLabel } from '../lib/constants'
 import { dateKey, formatDate, formatDateTime, formatNumber, formatRupiah } from '../lib/format'
 import { buildReceiptText, whatsappLink } from '../lib/receipt'
-import { exportSalesCsv, exportSalesExcel } from '../lib/csv'
+import { exportSalesReportExcel } from '../lib/excel'
 import {
   Badge,
   Button,
@@ -107,33 +107,22 @@ export default function Transactions() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button
-              variant="secondary"
               size="md"
               icon={Download}
-              onClick={() => {
+              onClick={async () => {
                 if (!filtered.length) {
                   toast.info('Tidak ada transaksi untuk diekspor pada rentang ini.')
                   return
                 }
-                exportSalesExcel(filtered, from, to, settings)
-                toast.success('Laporan Excel (.xlsx) berhasil diunduh')
+                try {
+                  await exportSalesReportExcel(filtered, from, to, settings)
+                  toast.success('Laporan Penjualan Excel (.xlsx) berhasil diunduh')
+                } catch (err) {
+                  toast.error('Gagal membuat file Excel')
+                }
               }}
             >
               Ekspor Excel (.xlsx)
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={() => {
-                if (!filtered.length) {
-                  toast.info('Tidak ada transaksi untuk diekspor pada rentang ini.')
-                  return
-                }
-                exportSalesCsv(filtered, from, to, settings)
-                toast.success('Laporan CSV (Excel) berhasil diunduh')
-              }}
-            >
-              CSV
             </Button>
           </div>
         }

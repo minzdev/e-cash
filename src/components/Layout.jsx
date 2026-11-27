@@ -81,11 +81,11 @@ function Sidebar({ open, onClose }) {
         )}
       >
         <div className="flex items-center gap-3 px-5 pb-5 pt-6">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-xl shadow-lg shadow-brand-500/25">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-md ring-1 ring-white/10">
             {isImageLogo(settings.logo) ? (
-              <img src={settings.logo} alt="Logo" className="h-full w-full object-cover" />
+              <img src={settings.logo} alt="Logo" className="h-full w-full object-contain" />
             ) : (
-              settings.logo || '☕'
+              <span className="text-2xl">{settings.logo || '☕'}</span>
             )}
           </span>
           <div className="min-w-0">

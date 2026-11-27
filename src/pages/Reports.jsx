@@ -3,6 +3,8 @@ import { endOfMonth, startOfMonth, subDays } from 'date-fns'
 import {
   Boxes,
   Download,
+  FileSpreadsheet,
+  Home,
   Landmark,
   ReceiptText,
   ShoppingBag,
@@ -21,7 +23,7 @@ import {
 } from '../lib/analytics'
 import { PAYMENT_METHODS, paymentLabel } from '../lib/constants'
 import { dateKey, formatCompact, formatDate, formatNumber, formatRupiah } from '../lib/format'
-import { exportSalesCsv, exportSalesExcel } from '../lib/csv'
+import { exportFinancialReportExcel, exportSalesReportExcel } from '../lib/excel'
 import {
   Badge,
   Button,
@@ -97,7 +99,7 @@ function rangeForPreset(preset) {
 }
 
 export default function Reports() {
-  const { sales, settings, loadingSales } = useStore()
+  const { sales, products, settings, loadingSales, loadingProducts } = useStore()
   const [preset, setPreset] = useState('30d')
   const [range, setRange] = useState(() => rangeForPreset('30d'))
 
@@ -127,41 +129,171 @@ export default function Reports() {
   const categoryTotal = categories.reduce((sum, entry) => sum + entry.value, 0)
   const margin = summary.revenue > 0 ? (summary.profit / summary.revenue) * 100 : 0
 
+  // Perhitungan Saldo Kas & Persediaan Stok Real-Time
+  const initialCash = Number(settings?.initialCash) || 0
+  const validSales = useMemo(() => filtered.filter((s) => s.status !== 'void'), [filtered])
+
+  const cashSales = useMemo(() => validSales.filter((s) => s.paymentMethod !== 'rumah'), [validSales])
+  const totalCashIn = useMemo(() => cashSales.reduce((sum, s) => sum + (Number(s.paid) || 0), 0), [cashSales])
+
+  const rumahSales = useMemo(() => validSales.filter((s) => s.paymentMethod === 'rumah'), [validSales])
+  const totalRumahCashIn = useMemo(() => rumahSales.reduce((sum, s) => sum + (Number(s.paid) || 0), 0), [rumahSales])
+  const totalRumahCogs = useMemo(
+    () =>
+      rumahSales.reduce(
+        (sum, s) =>
+          sum +
+          (s.items || []).reduce(
+            (acc, item) => acc + (Number(item.cost) || 0) * (Number(item.qty) || 0),
+            0,
+          ),
+        0,
+      ),
+    [rumahSales],
+  )
+
+  const endingCash = initialCash + totalCashIn + totalRumahCashIn
+
+  const currentTotalStockQty = useMemo(
+    () => (products || []).reduce((sum, p) => sum + (Number(p.stock) || 0), 0),
+    [products],
+  )
+  const currentStockValuation = useMemo(
+    () => (products || []).reduce((sum, p) => sum + (Number(p.stock) || 0) * (Number(p.cost) || 0), 0),
+    [products],
+  )
+
+  const totalQtySoldInPeriod = useMemo(
+    () =>
+      validSales.reduce(
+        (sum, s) => sum + (s.items || []).reduce((acc, item) => acc + (Number(item.qty) || 0), 0),
+        0,
+      ),
+    [validSales],
+  )
+  const totalCogsSoldInPeriod = useMemo(
+    () =>
+      validSales.reduce(
+        (sum, s) =>
+          sum +
+          (s.items || []).reduce(
+            (acc, item) => acc + (Number(item.cost) || 0) * (Number(item.qty) || 0),
+            0,
+          ),
+        0,
+      ),
+    [validSales],
+  )
+
+  const initialStockQty = currentTotalStockQty + totalQtySoldInPeriod
+  const initialStockValuation = currentStockValuation + totalCogsSoldInPeriod
+
   function applyPreset(next) {
     setPreset(next)
     if (next !== 'custom') setRange(rangeForPreset(next))
   }
 
-  function handleExport(format = 'excel') {
+  async function handleExportSales() {
     if (!filtered.length) {
       toast.info('Tidak ada transaksi pada periode ini.')
       return
     }
-    if (format === 'csv') {
-      exportSalesCsv(filtered, range.from, range.to, settings)
-      toast.success('Laporan CSV (Excel) berhasil diunduh')
-    } else {
-      exportSalesExcel(filtered, range.from, range.to, settings)
-      toast.success('Laporan Excel (.xlsx) berhasil diunduh')
+    try {
+      await exportSalesReportExcel(filtered, range.from, range.to, settings)
+      toast.success('Laporan Penjualan (.xlsx) berhasil diunduh')
+    } catch (err) {
+      toast.error('Gagal membuat laporan penjualan Excel')
+    }
+  }
+
+  async function handleExportFinancial() {
+    try {
+      await exportFinancialReportExcel({
+        sales: filtered,
+        products,
+        fromLabel: range.from,
+        toLabel: range.to,
+        settings,
+      })
+      toast.success('Laporan Keuangan & Stok (.xlsx) berhasil diunduh')
+    } catch (err) {
+      toast.error('Gagal membuat laporan keuangan Excel')
     }
   }
 
   return (
     <div className="space-y-4">
       <PageHeading
-        title="Laporan keuangan"
+        title="Laporan & Keuangan"
         description={`Periode ${formatDate(`${range.from}T00:00:00`, 'dd MMM yyyy')} – ${formatDate(`${range.to}T00:00:00`, 'dd MMM yyyy')}`}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="md" icon={Download} onClick={() => handleExport('excel')}>
-              Ekspor Excel (.xlsx)
+            <Button size="md" icon={FileSpreadsheet} onClick={handleExportSales}>
+              Laporan Penjualan (.xlsx)
             </Button>
-            <Button variant="secondary" size="md" onClick={() => handleExport('csv')}>
-              CSV
+            <Button
+              variant="secondary"
+              size="md"
+              icon={Download}
+              className="border-brand-300 bg-brand-50/70 text-brand-800 hover:bg-brand-100"
+              onClick={handleExportFinancial}
+            >
+              Laporan Keuangan (.xlsx)
             </Button>
           </div>
         }
       />
+
+      {/* Box Posisi Kas & Persediaan Stok Real-time (Sesuai Permintaan) */}
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-emerald-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Saldo Awal Kas / Uang</span>
+            <Wallet size={18} className="text-emerald-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">{formatRupiah(initialCash)}</p>
+          <div className="mt-2 flex items-center justify-between border-t border-emerald-200/60 pt-2 text-[11px] text-slate-600">
+            <span>Saldo Akhir Kas Realtime:</span>
+            <span className="font-bold text-emerald-700">{formatRupiah(endingCash)}</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-500/10 to-indigo-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-sky-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Saldo Awal Stok Barang</span>
+            <Boxes size={18} className="text-sky-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">{formatRupiah(initialStockValuation)}</p>
+          <div className="mt-2 flex items-center justify-between border-t border-sky-200/60 pt-2 text-[11px] text-slate-600">
+            <span>Volume awal persediaan:</span>
+            <span className="font-bold text-sky-700">{formatNumber(initialStockQty)} unit</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-500/10 to-purple-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-violet-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Sisa Nilai Stok Terkini</span>
+            <ShoppingBag size={18} className="text-violet-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">{formatRupiah(currentStockValuation)}</p>
+          <div className="mt-2 flex items-center justify-between border-t border-violet-200/60 pt-2 text-[11px] text-slate-600">
+            <span>Sisa fisik realtime:</span>
+            <span className="font-bold text-violet-700">{formatNumber(currentTotalStockQty)} unit</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-500/10 to-pink-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-rose-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Ambilan Rumah (Owner)</span>
+            <Home size={18} className="text-rose-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">{formatRupiah(totalRumahCogs)}</p>
+          <div className="mt-2 flex items-center justify-between border-t border-rose-200/60 pt-2 text-[11px] text-slate-600">
+            <span>{rumahSales.length} transaksi ambilan</span>
+            <span className="font-bold text-rose-700">Masuk kas: {formatRupiah(totalRumahCashIn)}</span>
+          </div>
+        </div>
+      </div>
 
       <Card className="p-3">
         <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
