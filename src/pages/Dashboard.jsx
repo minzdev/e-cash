@@ -361,9 +361,9 @@ export default function Dashboard() {
         <Card>
           <CardHeader
             title="Metode pembayaran"
-            description="30 hari terakhir"
+            description={isPeriodFiltered ? 'Sesuai periode terpilih' : '30 hari terakhir'}
             icon={Wallet}
-            action={<Badge tone="slate">{formatNumber(last30Sales.length)} trx</Badge>}
+            action={<Badge tone="slate">{formatNumber(targetSalesForStats.length)} trx</Badge>}
           />
           <div className="p-5 pt-4">
             {payments.length === 0 ? (
@@ -425,7 +425,7 @@ export default function Dashboard() {
         <Card className="xl:col-span-2">
           <CardHeader
             title="Produk terlaris"
-            description="Berdasarkan jumlah terjual 30 hari terakhir"
+            description={isPeriodFiltered ? 'Berdasarkan jumlah terjual periode terpilih' : 'Berdasarkan jumlah terjual 30 hari terakhir'}
             icon={Boxes}
             action={
               <Link to="/laporan" className="text-[11px] font-bold text-brand-700 hover:text-brand-800">
