@@ -541,7 +541,14 @@ export default function Finance() {
                         {row.date}
                       </td>
                       <td className="border border-slate-200 px-3 py-2 font-medium text-slate-800">
-                        {row.keterangan}
+                        <div className="flex items-center gap-1.5">
+                          <span>{row.keterangan}</span>
+                          {row.sourceType === 'sale' ? (
+                            <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9px] font-bold text-brand-700 ring-1 ring-brand-200/60">
+                              POS
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="border border-slate-200 px-2 py-2 text-center text-slate-700">
                         {row.inDus > 0 ? row.inDus : ''}
@@ -572,11 +579,21 @@ export default function Finance() {
                       </td>
                       <td className="border border-slate-200 px-3 py-2">
                         {isRumah ? (
-                          <span className="inline-flex items-center rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
-                            Rumah
-                          </span>
+                          <div>
+                            <span className="inline-flex items-center rounded-md bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-700">
+                              Rumah
+                            </span>
+                            {row.invoiceRef ? (
+                              <span className="block text-[9px] text-slate-400 font-mono mt-0.5">{row.invoiceRef}</span>
+                            ) : null}
+                          </div>
                         ) : (
-                          <span className="text-slate-800">{row.customerNote || '-'}</span>
+                          <div>
+                            <span className="text-slate-800 font-medium">{row.customerNote || '-'}</span>
+                            {row.invoiceRef ? (
+                              <span className="block text-[9px] text-slate-400 font-mono mt-0.5">{row.invoiceRef}</span>
+                            ) : null}
+                          </div>
                         )}
                       </td>
                       <td className="border border-slate-200 px-2 py-2 text-center">

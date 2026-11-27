@@ -9,6 +9,7 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  User,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,6 +38,9 @@ function CartPanel({
   setCustomerName,
   note,
   setNote,
+  salesPersonId,
+  setSalesPersonId,
+  salesPersons,
   changeQty,
   removeItem,
   clearCart,
@@ -135,6 +139,24 @@ function CartPanel({
       </div>
 
       <div className="shrink-0 space-y-3 border-t border-slate-100 px-4 py-3">
+        {/* Sales/Pembawa selector */}
+        {salesPersons && salesPersons.length > 0 ? (
+          <div className="relative">
+            <User size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select
+              value={salesPersonId}
+              onChange={(e) => setSalesPersonId(e.target.value)}
+              className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-2.5 text-[11px] text-slate-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/10"
+            >
+              <option value="">-- Pilih Sales / Pembawa --</option>
+              {salesPersons.filter(sp => sp.active !== false).map(sp => (
+                <option key={sp.id} value={sp.id}>
+                  {sp.name}{sp.feePerPcs ? ` (Fee: ${formatRupiah(sp.feePerPcs)}/pcs)` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <input
             type="text"
@@ -214,7 +236,7 @@ function CartPanel({
 }
 
 export default function POS() {
-  const { products, settings, loadingProducts } = useStore()
+  const { products, salesPersons, settings, loadingProducts } = useStore()
   const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('Semua')
@@ -223,6 +245,7 @@ export default function POS() {
   const [shipping, setShipping] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [note, setNote] = useState('')
+  const [salesPersonId, setSalesPersonId] = useState('')
   const [cartOpen, setCartOpen] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
 
@@ -307,6 +330,7 @@ export default function POS() {
     setShipping('')
     setCustomerName('')
     setNote('')
+    setSalesPersonId('')
   }
 
   function startCheckout() {
@@ -319,6 +343,9 @@ export default function POS() {
     clearCart()
     setCartOpen(false)
   }
+
+  // Resolve selected salesPerson details
+  const selectedSalesPerson = (salesPersons || []).find(sp => sp.id === salesPersonId) || null
 
   const cartProps = {
     lines: cartLines,
@@ -337,6 +364,9 @@ export default function POS() {
     setCustomerName,
     note,
     setNote,
+    salesPersonId,
+    setSalesPersonId,
+    salesPersons: salesPersons || [],
     changeQty,
     removeItem,
     clearCart,
@@ -549,6 +579,9 @@ export default function POS() {
         settings={settings}
         onSuccess={handleSuccess}
         itemCount={itemCount}
+        salesPersonId={salesPersonId}
+        salesPersonName={selectedSalesPerson?.name || ''}
+        salesFeePerPcs={selectedSalesPerson?.feePerPcs || 0}
       />
     </div>
   )

@@ -8,6 +8,7 @@ const listeners = {
   sales: new Set(),
   settings: new Set(),
   financeRecords: new Set(),
+  salesPersons: new Set(),
 }
 
 let cache = null
@@ -59,6 +60,8 @@ function emit(name) {
     payload = [...(state.financeRecords || [])].sort(
       (a, b) => (toDate(a.date || a.createdAt)?.getTime() || 0) - (toDate(b.date || b.createdAt)?.getTime() || 0),
     )
+  } else if (name === 'salesPersons') {
+    payload = [...(state.salesPersons || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), 'id'))
   }
   listeners[name]?.forEach((callback) => callback(payload))
 }
@@ -280,6 +283,8 @@ export async function createSale(input) {
     note: String(input.note || (isRumah ? 'Ambilan Rumah / Owner' : '')).trim(),
     cashierId: cashier.uid || '',
     cashierName: cashier.name || 'Kasir',
+    salesPersonId: String(input.salesPersonId || ''),
+    salesPersonName: String(input.salesPersonName || ''),
     status: 'paid',
     createdAt: now.toISOString(),
     dateKey: dateKey(now),
@@ -295,10 +300,41 @@ export async function createSale(input) {
     }
   })
 
+  // Auto-create financeRecord agar transaksi masuk ke Buku Kas & Keuangan
+  if (!state.financeRecords) state.financeRecords = []
+  const totalQty = saleItems.reduce((sum, item) => sum + item.qty, 0)
+  const magatiFeePerPcs = isRumah ? 0 : (Number(input.magatiFeePerPcs) || 0)
+  const salesFeePerPcs = isRumah ? 0 : (Number(input.salesFeePerPcs) || 0)
+  const keterangan = String(input.salesPersonName || input.defaultSalesName || cashier.name || 'Kasir')
+  state.financeRecords.push({
+    id: uid(),
+    sourceType: isRumah ? 'rumah' : 'sale',
+    sourceId: sale.id,
+    date: dateKey(now),
+    keterangan,
+    salesPersonId: String(input.salesPersonId || ''),
+    salesPersonName: String(input.salesPersonName || ''),
+    type: isRumah ? 'rumah' : 'sale',
+    inDus: 0,
+    outDus: totalQty,
+    outBnsDus: 0,
+    omzet: total,
+    magatiFee: totalQty * magatiFeePerPcs,
+    salesFee: totalQty * salesFeePerPcs,
+    uangModal: totalCost,
+    tfSaldo: 0,
+    cashOut: 0,
+    customerNote: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+    invoiceRef: sale.invoiceNo,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  })
+
   state.sales.push(sale)
   persist()
   emit('sales')
   emit('products')
+  emit('financeRecords')
   return sale
 }
 
@@ -357,5 +393,58 @@ export async function resetDemoData() {
   emit('products')
   emit('sales')
   emit('settings')
+  emit('financeRecords')
+  emit('salesPersons')
   return true
+}
+
+// ── Sales Persons (Daftar Sales / Pembawa) ──────────────────────────────────
+export function subscribeSalesPersons(callback) {
+  const state = load()
+  if (!state.salesPersons) state.salesPersons = []
+  listeners.salesPersons.add(callback)
+  callback([...state.salesPersons].sort((a, b) => String(a.name).localeCompare(String(b.name), 'id')))
+  return () => listeners.salesPersons.delete(callback)
+}
+
+export async function createSalesPerson(input) {
+  const state = load()
+  if (!state.salesPersons) state.salesPersons = []
+  const now = new Date().toISOString()
+  const person = {
+    id: uid(),
+    name: String(input.name || '').trim(),
+    feePerPcs: Number(input.feePerPcs) || 0,
+    active: input.active !== false,
+    createdAt: now,
+    updatedAt: now,
+  }
+  state.salesPersons.push(person)
+  persist()
+  emit('salesPersons')
+  return person.id
+}
+
+export async function updateSalesPerson(id, input) {
+  const state = load()
+  if (!state.salesPersons) state.salesPersons = []
+  const index = state.salesPersons.findIndex((p) => p.id === id)
+  if (index === -1) throw new Error('Sales tidak ditemukan.')
+  state.salesPersons[index] = {
+    ...state.salesPersons[index],
+    name: String(input.name || '').trim(),
+    feePerPcs: Number(input.feePerPcs) || 0,
+    active: input.active !== false,
+    updatedAt: new Date().toISOString(),
+  }
+  persist()
+  emit('salesPersons')
+}
+
+export async function deleteSalesPerson(id) {
+  const state = load()
+  if (!state.salesPersons) return
+  state.salesPersons = state.salesPersons.filter((p) => p.id !== id)
+  persist()
+  emit('salesPersons')
 }

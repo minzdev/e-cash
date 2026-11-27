@@ -87,6 +87,43 @@ export function subscribeFinanceRecords(callback) {
   )
 }
 
+// ── Sales Persons (Daftar Sales / Pembawa) ───────────────────────────────────
+export function subscribeSalesPersons(callback) {
+  const q = query(collection(db, 'salesPersons'), orderBy('name', 'asc'))
+  return onSnapshot(
+    q,
+    (snapshot) => callback(mapDocs(snapshot)),
+    (error) => {
+      console.error('[e-cash] subscribeSalesPersons', error)
+      callback([])
+    },
+  )
+}
+
+export async function createSalesPerson(input) {
+  const ref = await addDoc(collection(db, 'salesPersons'), {
+    name: String(input.name || '').trim(),
+    feePerPcs: Number(input.feePerPcs) || 0,
+    active: input.active !== false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function updateSalesPerson(id, input) {
+  await updateDoc(doc(db, 'salesPersons', id), {
+    name: String(input.name || '').trim(),
+    feePerPcs: Number(input.feePerPcs) || 0,
+    active: input.active !== false,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function deleteSalesPerson(id) {
+  await deleteDoc(doc(db, 'salesPersons', id))
+}
+
 export async function createFinanceRecord(input) {
   const ref = await addDoc(collection(db, 'financeRecords'), {
     ...input,
@@ -245,6 +282,12 @@ export async function createSale(input) {
     const now = new Date()
     const invoiceNo = `INV-${dateKey(now).replaceAll('-', '')}-${String(seq).padStart(4, '0')}`
 
+    const salesPersonId = String(input.salesPersonId || '')
+    const salesPersonName = String(input.salesPersonName || '')
+    const totalQty = saleItems.reduce((sum, item) => sum + item.qty, 0)
+    const magatiFeePerPcs = isRumah ? 0 : (Number(input.magatiFeePerPcs) || 0)
+    const salesFeePerPcs = isRumah ? 0 : (Number(input.salesFeePerPcs) || 0)
+
     const payload = {
       invoiceNo,
       items: saleItems,
@@ -262,6 +305,8 @@ export async function createSale(input) {
       note: String(input.note || (isRumah ? 'Ambilan Rumah / Owner' : '')).trim(),
       cashierId: cashier.uid || '',
       cashierName: cashier.name || 'Kasir',
+      salesPersonId,
+      salesPersonName,
       status: 'paid',
       createdAt: serverTimestamp(),
       dateKey: dateKey(now),
@@ -271,6 +316,32 @@ export async function createSale(input) {
 
     tx.set(counterRef, { seq }, { merge: true })
     tx.set(saleRef, payload)
+
+    // Auto-create financeRecord agar transaksi masuk ke Buku Kas & Keuangan
+    const financeRef = doc(collection(db, 'financeRecords'))
+    const keterangan = salesPersonName || input.defaultSalesName || cashier.name || 'Kasir'
+    tx.set(financeRef, {
+      sourceType: isRumah ? 'rumah' : 'sale',
+      sourceId: saleRef.id,
+      date: dateKey(now),
+      keterangan,
+      salesPersonId,
+      salesPersonName,
+      type: isRumah ? 'rumah' : 'sale',
+      inDus: 0,
+      outDus: totalQty,
+      outBnsDus: 0,
+      omzet: total,
+      magatiFee: totalQty * magatiFeePerPcs,
+      salesFee: totalQty * salesFeePerPcs,
+      uangModal: totalCost,
+      tfSaldo: 0,
+      cashOut: 0,
+      customerNote: String(input.customerName || (isRumah ? 'Owner (Rumah)' : '')).trim(),
+      invoiceRef: invoiceNo,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
 
     entries.forEach(({ productRef, snapshot }, index) => {
       const product = snapshot.data()

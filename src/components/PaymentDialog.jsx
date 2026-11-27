@@ -50,6 +50,9 @@ export default function PaymentDialog({
   settings,
   onSuccess,
   itemCount,
+  salesPersonId = '',
+  salesPersonName = '',
+  salesFeePerPcs = 0,
 }) {
   const [method, setMethod] = useState('cash')
   const [paidInput, setPaidInput] = useState('')
@@ -124,6 +127,11 @@ export default function PaymentDialog({
         customerName: method === 'rumah' ? (customerName || 'Owner (Rumah)') : customerName,
         note: method === 'rumah' ? (note ? `${note} · [Ambilan Rumah]` : rumahNote) : note,
         cashier,
+        salesPersonId,
+        salesPersonName,
+        salesFeePerPcs,
+        magatiFeePerPcs: Number(settings?.magatiFeePerPcs) || 0,
+        defaultSalesName: settings?.defaultSalesName || '',
       })
       setCompleted(sale)
       onSuccess?.(sale)
