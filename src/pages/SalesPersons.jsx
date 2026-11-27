@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react'
 import {
+  Banknote,
   Coins,
   Edit2,
+  PackageCheck,
   Plus,
   Search,
   Trash2,
+  TrendingUp,
   UserCheck,
   UserPlus,
   Users,
@@ -13,7 +16,7 @@ import {
 import { toast } from 'sonner'
 import { useStore } from '../context/StoreContext'
 import { api } from '../lib/api'
-import { formatDate, formatRupiah } from '../lib/format'
+import { formatDate, formatNumber, formatRupiah } from '../lib/format'
 import {
   Badge,
   Button,
@@ -27,7 +30,7 @@ import {
 } from '../components/ui'
 
 export default function SalesPersons() {
-  const { salesPersons, loadingSalesPersons, settings } = useStore()
+  const { salesPersons, loadingSalesPersons, settings, financeRecords } = useStore()
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingPerson, setEditingPerson] = useState(null)
@@ -59,8 +62,8 @@ export default function SalesPersons() {
     setEditingPerson(person)
     setForm({
       name: person.name || '',
-      feeRetail: Number(person.feeRetail ?? person.feePerPcs ?? settings?.salesFeeRetail ?? 5000),
-      feeWholesale: Number(person.feeWholesale ?? person.feePerPcs ?? settings?.salesFeeWholesale ?? 3000),
+      feeRetail: person.feeRetail !== undefined ? Number(person.feeRetail) : Number(person.feePerPcs ?? settings?.salesFeeRetail ?? 5000),
+      feeWholesale: person.feeWholesale !== undefined ? Number(person.feeWholesale) : Number(person.feePerPcs ?? settings?.salesFeeWholesale ?? 3000),
       active: person.active !== false,
     })
     setModalOpen(true)
@@ -119,7 +122,9 @@ export default function SalesPersons() {
     try {
       await api.updateSalesPerson(person.id, {
         name: person.name,
-        feePerPcs: person.feePerPcs,
+        feeRetail: person.feeRetail,
+        feeWholesale: person.feeWholesale,
+        feePerPcs: person.feeWholesale || person.feePerPcs,
         active: !person.active,
       })
       toast.success(
@@ -131,6 +136,47 @@ export default function SalesPersons() {
       toast.error('Gagal memperbarui status sales')
     }
   }
+
+  // Hitung akumulasi real-time komisi fee, total transaksi, dan total pcs per sales
+  const salesStatsMap = useMemo(() => {
+    const map = {}
+    ;(salesPersons || []).forEach((p) => {
+      map[p.id] = { totalTx: 0, totalPcs: 0, totalFee: 0, totalOmzet: 0 }
+    })
+
+    const records = financeRecords || []
+    records.forEach((rec) => {
+      if (rec.type === 'void') return
+      // Cocokkan berdasarkan salesPersonId atau nama keterangan
+      const matched = (salesPersons || []).find((p) =>
+        (rec.salesPersonId && p.id === rec.salesPersonId) ||
+        (rec.keterangan && p.name && rec.keterangan.trim().toLowerCase() === p.name.trim().toLowerCase())
+      )
+
+      if (matched) {
+        if (!map[matched.id]) {
+          map[matched.id] = { totalTx: 0, totalPcs: 0, totalFee: 0, totalOmzet: 0 }
+        }
+        const pcs = Number(rec.outDus) || 0
+        const fee = Number(rec.salesFee) || 0
+        const omz = Number(rec.omzet) || 0
+        map[matched.id].totalTx += 1
+        map[matched.id].totalPcs += pcs
+        map[matched.id].totalFee += fee
+        map[matched.id].totalOmzet += omz
+      }
+    })
+
+    return map
+  }, [salesPersons, financeRecords])
+
+  const totalAccumulatedFee = useMemo(() => {
+    return Object.values(salesStatsMap).reduce((sum, s) => sum + (s.totalFee || 0), 0)
+  }, [salesStatsMap])
+
+  const totalAccumulatedPcs = useMemo(() => {
+    return Object.values(salesStatsMap).reduce((sum, s) => sum + (s.totalPcs || 0), 0)
+  }, [salesStatsMap])
 
   // Filter list
   const filteredList = useMemo(() => {
@@ -162,8 +208,8 @@ export default function SalesPersons() {
         }
       />
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Stat Cards Realtime */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Total Sales</span>
@@ -182,15 +228,22 @@ export default function SalesPersons() {
           <p className="mt-1 text-[11px] text-slate-400">Dapat dipilih langsung di Kasir</p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between text-amber-700">
-            <span className="text-xs font-semibold uppercase tracking-wider">Default Fee / Pcs</span>
-            <Coins size={18} className="text-amber-600" />
+        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-emerald-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Total Fee Didapat (Realtime)</span>
+            <Banknote size={18} className="text-emerald-600" />
           </div>
-          <p className="mt-2 text-2xl font-extrabold text-slate-900">
-            {formatRupiah(settings?.salesFeePerPcs || 0)}
-          </p>
-          <p className="mt-1 text-[11px] text-slate-400">Dapat diatur per sales individu</p>
+          <p className="mt-2 text-2xl font-extrabold text-emerald-700">{formatRupiah(totalAccumulatedFee)}</p>
+          <p className="mt-1 text-[11px] text-emerald-600 font-medium">Akumulasi komisi seluruh sales</p>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-500/10 to-orange-500/5 p-4 shadow-sm">
+          <div className="flex items-center justify-between text-amber-800">
+            <span className="text-xs font-bold uppercase tracking-wider">Barang Terjual via Sales</span>
+            <PackageCheck size={18} className="text-amber-600" />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold text-slate-900">{totalAccumulatedPcs} Pcs</p>
+          <p className="mt-1 text-[11px] text-slate-500">Total volume penjualan sales</p>
         </div>
       </div>
 
@@ -238,20 +291,23 @@ export default function SalesPersons() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] border-collapse text-xs">
+            <table className="w-full min-w-[850px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 font-bold text-slate-700">
                   <th className="px-3 py-3 text-center w-12">NO</th>
                   <th className="px-4 py-3 text-left">NAMA SALES / PEMBAWA</th>
-                  <th className="px-4 py-3 text-right w-52">KOMISI FEE / PCS</th>
-                  <th className="px-4 py-3 text-center w-36">STATUS</th>
-                  <th className="px-4 py-3 text-center w-40">TANGGAL DIBUAT</th>
-                  <th className="px-4 py-3 text-center w-28">AKSI</th>
+                  <th className="px-4 py-3 text-right w-44">TARIF KOMISI / PCS</th>
+                  <th className="px-4 py-3 text-center w-36">BARANG TERJUAL</th>
+                  <th className="px-4 py-3 text-right w-48">TOTAL FEE (REALTIME)</th>
+                  <th className="px-4 py-3 text-center w-28">STATUS</th>
+                  <th className="px-4 py-3 text-center w-32">TGL DIBUAT</th>
+                  <th className="px-4 py-3 text-center w-24">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredList.map((person, index) => {
                   const isActive = person.active !== false
+                  const pStats = salesStatsMap[person.id] || { totalTx: 0, totalPcs: 0, totalFee: 0 }
                   return (
                     <tr key={person.id} className="transition hover:bg-slate-50/80">
                       <td className="px-3 py-3 text-center text-slate-500 font-medium">
@@ -276,11 +332,28 @@ export default function SalesPersons() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex flex-col items-end">
-                          <span className="font-bold text-slate-800">
-                            Eceran: <span className="text-brand-700">{formatRupiah(person.feeRetail ?? person.feePerPcs ?? 5000)}</span>
+                          <span className="font-semibold text-slate-800">
+                            Eceran: <span className="font-bold text-brand-700">{formatRupiah(person.feeRetail !== undefined ? person.feeRetail : (person.feePerPcs ?? 5000))}</span>
                           </span>
-                          <span className="text-[11px] font-bold text-slate-500">
-                            Grosir: <span className="text-amber-700">{formatRupiah(person.feeWholesale ?? person.feePerPcs ?? 3000)}</span>
+                          <span className="text-[10px] text-slate-500">
+                            Grosir: <span className="font-bold text-amber-700">{formatRupiah(person.feeWholesale !== undefined ? person.feeWholesale : (person.feePerPcs ?? 3000))}</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-slate-800">{pStats.totalPcs} Pcs</span>
+                          <span className="text-[10px] text-slate-400">{pStats.totalTx} transaksi</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="text-sm font-extrabold text-emerald-700">
+                            {formatRupiah(pStats.totalFee)}
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-600">
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Realtime
                           </span>
                         </div>
                       </td>

@@ -101,9 +101,13 @@ export function subscribeSalesPersons(callback) {
 }
 
 export async function createSalesPerson(input) {
+  const feeRetail = Math.max(0, Number(input.feeRetail ?? input.feePerPcs ?? 5000))
+  const feeWholesale = Math.max(0, Number(input.feeWholesale ?? input.feePerPcs ?? 3000))
   const ref = await addDoc(collection(db, 'salesPersons'), {
     name: String(input.name || '').trim(),
-    feePerPcs: Number(input.feePerPcs) || 0,
+    feeRetail,
+    feeWholesale,
+    feePerPcs: feeWholesale, // fallback backward compatibility
     active: input.active !== false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -112,9 +116,13 @@ export async function createSalesPerson(input) {
 }
 
 export async function updateSalesPerson(id, input) {
+  const feeRetail = Math.max(0, Number(input.feeRetail ?? input.feePerPcs ?? 5000))
+  const feeWholesale = Math.max(0, Number(input.feeWholesale ?? input.feePerPcs ?? 3000))
   await updateDoc(doc(db, 'salesPersons', id), {
     name: String(input.name || '').trim(),
-    feePerPcs: Number(input.feePerPcs) || 0,
+    feeRetail,
+    feeWholesale,
+    feePerPcs: feeWholesale,
     active: input.active !== false,
     updatedAt: serverTimestamp(),
   })

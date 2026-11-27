@@ -448,10 +448,14 @@ export async function createSalesPerson(input) {
   const state = load()
   if (!state.salesPersons) state.salesPersons = []
   const now = new Date().toISOString()
+  const feeRetail = Math.max(0, Number(input.feeRetail ?? input.feePerPcs ?? 5000))
+  const feeWholesale = Math.max(0, Number(input.feeWholesale ?? input.feePerPcs ?? 3000))
   const person = {
     id: uid(),
     name: String(input.name || '').trim(),
-    feePerPcs: Number(input.feePerPcs) || 0,
+    feeRetail,
+    feeWholesale,
+    feePerPcs: feeWholesale,
     active: input.active !== false,
     createdAt: now,
     updatedAt: now,
@@ -467,10 +471,14 @@ export async function updateSalesPerson(id, input) {
   if (!state.salesPersons) state.salesPersons = []
   const index = state.salesPersons.findIndex((p) => p.id === id)
   if (index === -1) throw new Error('Sales tidak ditemukan.')
+  const feeRetail = Math.max(0, Number(input.feeRetail ?? input.feePerPcs ?? state.salesPersons[index].feeRetail ?? 5000))
+  const feeWholesale = Math.max(0, Number(input.feeWholesale ?? input.feePerPcs ?? state.salesPersons[index].feeWholesale ?? 3000))
   state.salesPersons[index] = {
     ...state.salesPersons[index],
     name: String(input.name || '').trim(),
-    feePerPcs: Number(input.feePerPcs) || 0,
+    feeRetail,
+    feeWholesale,
+    feePerPcs: feeWholesale,
     active: input.active !== false,
     updatedAt: new Date().toISOString(),
   }
